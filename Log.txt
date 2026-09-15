@@ -1,0 +1,25 @@
+v1.1
+- Update possessions que estaven malament
+- Canvi de taules de 4 Factors
+- Normalització possessions i TOV%
+- Tarjetes passen a ser 4F
+v.1.2
+- Nova tula defensiva
+- Bug alineació valors taules
+- Treure vermell dels Punts
+- Ajsutar els noms de les pestanyes
+- Afegir xarxa d'assistències als totals acumulats
+v1.3
+- Afegir taula 4 factors individuals
+v1.4
+- Separar TO live de dead i afegir Punts després de Pèrdua
+- Afegir tarjetes OER/ DER i POS, treure quatre factors del Desglossament d'eficiencia. Arreglar PPS
+- Afegir punts del partit i jornada al títol
+- Arreglar bug hover títol partits
+v1.5
+- Arreglar taules amb valors que no són numeros
+- Nova funció per calcular les mètriques avançades si falten i uniformitzar el deslgosament per partit
+v1.6
+- Afegir pestanya Rebot
+v1.7
+- Bug acumulats en vermell i blau correctes

@@ -1,0 +1,6 @@
+[theme]
+primaryColor = "#d00000"                # Color d'accent (botons actius, pastilles)
+backgroundColor = "#ffffff"             # Fons principal de la pàgina
+secondaryBackgroundColor = "#f8f9fa"    # 👈 COLOR DEL SIDEBAR (Gris molt clar net)
+textColor = "#212529"                  # Color del text general
+font = "sans serif"
