@@ -202,7 +202,16 @@ if games_df.empty:
 all_comps = ["Totes les competicions"] + sorted(
     games_df["competition"].dropna().unique().tolist()
 )
-selected_comp = st.sidebar.selectbox("Competició", all_comps)
+
+# Detecta automàticament 'Copa Catalunya' (o 'Copa_Catalunya') si existeix; si no, deixa el primer
+default_idx = 0
+for i, comp in enumerate(all_comps):
+    c_clean = str(comp).lower().replace("_", " ")
+    if "copa" in c_clean or "catalunya" in c_clean:
+        default_idx = i
+        break
+
+selected_comp = st.sidebar.selectbox("Competició", all_comps, index=default_idx)
 
 filtered_games = games_df.copy()
 if selected_comp != "Totes les competicions":
