@@ -21,7 +21,36 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+# -------------------------------------------------------------
+# CONTROL D'ACCÉS (LOGIN SCREEN)
+# -------------------------------------------------------------
+def check_password():
+    """Returns True if the user is authenticated, otherwise stops execution."""
+    if st.session_state.get("authenticated", False):
+        return True
 
+    st.title("🔒 Dashboard CB Argentona - Accés Staff")
+    correct_password = st.secrets.get("auth", {}).get("password", None)
+
+    if not correct_password:
+        st.error("⚠️ La contrasenya no està configurada als Secrets de Streamlit.")
+        st.stop()
+
+    col_l1, col_l2, _ = st.columns([1.2, 1, 1])
+    with col_l1:
+        with st.form("login_form"):
+            entered_password = st.text_input("Introdueix la contrasenya de l'Staff:", type="password")
+            submit = st.form_submit_button("Entrar", use_container_width=True)
+            if submit:
+                if entered_password == correct_password:
+                    st.session_state["authenticated"] = True
+                    st.rerun()
+                else:
+                    st.error("❌ Contrasenya incorrecta.")
+    return False
+
+if not check_password():
+    st.stop()  # Hides all sidebar, data loading, and dashboards until authenticated
 st.markdown(
     """
 <style>
