@@ -133,9 +133,38 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
     else:
         readable_name = f"{date_str} - {our_team} {score_txt} {opponent}"
 
+    # Llegir metadata.json si existeix a la carpeta del partit
+    meta_json_path = folder_path / "metadata.json"
+    pista_val = "Desconegut"
+    if meta_json_path.exists():
+        try:
+            with open(meta_json_path, "r", encoding="utf-8") as f:
+                mj = json.load(f)
+                pista_val = mj.get("pista") or mj.get("location") or "Desconegut"
+                if "date" in mj and mj["date"]:
+                    date_str = mj["date"]
+        except Exception:
+            pass
+
+    # Calcular el mes en català a partir de la data
+    month_names = {
+        1: "Gener", 2: "Febrer", 3: "Març", 4: "Abril",
+        5: "Maig", 6: "Juny", 7: "Juliol", 8: "Agost",
+        9: "Setembre", 10: "Octubre", 11: "Novembre", 12: "Desembre"
+    }
+    month_str = "Altres"
+    try:
+        m_dt = pd.to_datetime(date_str, errors="coerce")
+        if pd.notna(m_dt):
+            month_str = month_names.get(m_dt.month, "Altres")
+    except Exception:
+        pass
+
     meta_dict = {
         "game_id": folder_name,
         "date": date_str,
+        "month": month_str,
+        "pista": pista_val,
         "competition": comp_str,
         "our_team": our_team,
         "opponent": opponent,

@@ -219,19 +219,16 @@ if games_df.empty:
     st.warning("⚠️ No s'han trobat partits a `data/raw/`.")
     st.stop()
 
-# Filtre de competició
+# 1. Filtre de competició (Copa Catalunya per defecte si existeix)
 all_comps = ["Totes les competicions"] + sorted(
     games_df["competition"].dropna().unique().tolist()
 )
-
-# Detecta automàticament 'Copa Catalunya' (o 'Copa_Catalunya') si existeix; si no, deixa el primer
 default_idx = 0
 for i, comp in enumerate(all_comps):
     c_clean = str(comp).lower().replace("_", " ")
     if "copa" in c_clean or "catalunya" in c_clean:
         default_idx = i
         break
-
 selected_comp = st.sidebar.selectbox("Competició", all_comps, index=default_idx)
 
 filtered_games = games_df.copy()
@@ -239,6 +236,43 @@ if selected_comp != "Totes les competicions":
     filtered_games = filtered_games[
         filtered_games["competition"] == selected_comp
     ]
+
+# 2. Filtre Casa / Fora (des de metadata.json)
+if "pista" in filtered_games.columns:
+    selected_pista = st.sidebar.segmented_control("Pista", ["Tots", "Casa", "Fora"], default="Tots")
+    if selected_pista != "Tots":
+        filtered_games = filtered_games[filtered_games["pista"] == selected_pista]
+else:
+    selected_pista = "Tots"
+
+# 3. Filtre per Mes
+if "month" in filtered_games.columns:
+    avail_months = [m for m in filtered_games["month"].dropna().unique().tolist() if m != "Altres"]
+    if avail_months:
+        selected_month = st.sidebar.selectbox("Mes", ["Tots els mesos"] + sorted(avail_months), index=0)
+        if selected_month != "Tots els mesos":
+            filtered_games = filtered_games[filtered_games["month"] == selected_month]
+    else:
+        selected_month = "Tots els mesos"
+else:
+    selected_month = "Tots els mesos"
+
+# 4. Selector manual de partits específics per comparar
+st.sidebar.markdown("<br>", unsafe_allow_html=True)
+custom_compare = st.sidebar.checkbox("🎯 Triar partits concrets", value=False, help="Marca per triar manualment quins partits vols comparar")
+
+if custom_compare and not filtered_games.empty:
+    game_dict_all = dict(zip(filtered_games["game_id"], filtered_games["name"]))
+    selected_ids = st.sidebar.multiselect(
+        "Partits a incloure:",
+        options=list(game_dict_all.keys()),
+        format_func=lambda x: game_dict_all.get(x, x),
+        default=list(game_dict_all.keys())
+    )
+    filtered_games = filtered_games[filtered_games["game_id"].isin(selected_ids)]
+
+st.sidebar.caption(f"📁 **{len(filtered_games)} partits seleccionats**")
+st.sidebar.markdown("---")
 
 view_mode = st.sidebar.radio(
     "Mode de visualització",
@@ -1989,10 +2023,20 @@ if view_mode == "Partit Individual":
         
 # --- MODO 2: TOTALS ACUMULATS DE LA TEMPORADA ---
 else:
-    st.title(f"🏆 Totals Acumulats ({selected_comp})")
-
     valid_ids = filtered_games["game_id"].astype(str).tolist()
     num_partits = len(valid_ids)
+
+    # Etiqueta dinàmica de filtres actius
+    active_filters = [selected_comp]
+    if selected_pista != "Tots":
+        active_filters.append(f"Pista: {selected_pista}")
+    if selected_month != "Tots els mesos":
+        active_filters.append(f"Mes: {selected_month}")
+    if custom_compare:
+        active_filters.append("Partits Personalitzats")
+
+    st.title(f"🏆 Totals Acumulats ({num_partits} partits)")
+    st.caption(f"📌 **Filtres actius:** {' • '.join(active_filters)}")
 
     # Dades acumulades de tots els partits seleccionats
     comp_box = box_df[box_df["game_id"].astype(str).isin(valid_ids)].copy()
