@@ -24,3 +24,5 @@ v1.6
 v1.7
 - Bug acumulats en vermell i blau correctes
 - Afegir contrasenya
+v1,8
+- Afegir tab Lineups

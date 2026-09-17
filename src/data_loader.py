@@ -237,6 +237,13 @@ def parse_lineups(file_path: Path, game_id: str) -> pd.DataFrame:
             "Lineup",
             "Rival",
             "game_id",
+            "MIN",
+            "Min",
+            "min",
+            "Duration",
+            "Duration(s)",
+            "Time",
+            "Seconds",
         ]
         for col in df.columns:
             if col in text_cols:

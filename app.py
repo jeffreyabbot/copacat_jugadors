@@ -1,15 +1,20 @@
 # app.py
 from pathlib import Path
+import re
+import unicodedata
 import numpy as np
 import pandas as pd
-from src.data_loader import CACHE_DIR, rebuild_cache
 import streamlit as st
 import base64
+from src.data_loader import CACHE_DIR, rebuild_cache
 from src.utils import (
     compute_pbp_advanced_stats,
     get_assist_combos,
     get_defensive_actions,
     get_individual_four_factors,
+    aggregate_lineup_data,
+    get_5man_lineup_summary,
+    is_player_in_lineup,
 )
 
 #python -m streamlit run app.py
@@ -123,6 +128,22 @@ st.markdown(
     [data-testid="stSidebar"] div[data-baseweb="select"] div {
         white-space: normal !important;
         line-height: 1.3 !important;
+    }
+    /* Ajust adaptatiu perquè el text ON · OFF no es talli mai */
+    div[data-testid="stMetricValue"] {
+        font-size: clamp(1.2rem, 1.7vw, 1.55rem) !important;
+        white-space: normal !important;
+        line-height: 1.25 !important;
+    }
+
+    /* Pastilla neutra per a la quota de participació (sense fletxa enganyosa) */
+    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Off"]) {
+        color: #495057 !important;
+        background-color: #e9ecef !important;
+        border-radius: 6px;
+        padding: 3px 8px;
+        width: fit-content;
+        font-weight: 500;
     }
 </style>
 """,
@@ -547,6 +568,184 @@ def style_boxscore(df_disp, mode="Tradicional"):
         styler = styler.format(fmt_dict, na_rep="-")
 
     return styler
+import unicodedata
+
+def clean_txt(t):
+    """Elimina accents, espais i passa a minúscules de forma segura."""
+    return "".join(
+        c for c in unicodedata.normalize("NFD", str(t))
+        if unicodedata.category(c) != "Mn"
+    ).lower().strip()
+
+def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
+    """Renderitza el panell d'On/Off basat exclusivament en possessions reals."""
+    if l_df.empty:
+        st.info("No hi ha dades de quintets disponibles per aquesta selecció.")
+        return
+
+    # 1. Llista de jugadors
+    clean_b = b_df[~b_df["Player"].astype(str).str.lower().isin(["totals", "total", "opponent", "team", "equip"])].copy()
+    grouped_p = clean_b.groupby(["Player", "Name"]).size().reset_index()
+
+    player_options = []
+    for _, r in grouped_p.iterrows():
+        p_num = str(r["Player"]).replace("#", "").strip()
+        p_name = str(r["Name"]).strip()
+        player_options.append((f"#{p_num} {p_name}", p_num, p_name))
+
+    def sort_p(item):
+        try:
+            return int(item[1])
+        except Exception:
+            return 999
+    player_options.sort(key=sort_p)
+
+    if not player_options:
+        st.warning("No s'han trobat jugadors per analitzar.")
+        return
+
+    col_sel, _ = st.columns([1.5, 1])
+    with col_sel:
+        selected_p_tuple = st.selectbox(
+            "👤 Selecciona el Jugador per a l'anàlisi On / Off:",
+            options=player_options,
+            format_func=lambda x: x[0],
+            key=f"{key_prefix}_player_select",
+        )
+    
+    p_label, p_num, p_name = selected_p_tuple
+
+    # 2. Filtrar quintets ON i OFF (Dades 100% de Lineups)
+    is_on_mask = l_df.apply(lambda r: is_player_in_lineup(r, p_num, p_name), axis=1)
+    df_on = l_df[is_on_mask].copy()
+    df_off = l_df[~is_on_mask].copy()
+
+    st_on = aggregate_lineup_data(df_on)
+    st_off = aggregate_lineup_data(df_off)
+
+    # 3. Càlcul de possessions i mètriques netes
+    poss_on = st_on.get("poss", 0)
+    poss_off = st_off.get("poss", 0)
+    disp_on_poss = int(round(poss_on))
+    disp_off_poss = int(round(poss_off))
+    tot_poss = disp_on_poss + disp_off_poss
+
+    pct_poss = (poss_on / tot_poss * 100.0) if tot_poss > 0 else 0.0
+
+    net_on = st_on.get("net_rtg", 0)
+    net_off = st_off.get("net_rtg", 0)
+    oer_on = st_on.get("oer", 0)
+    oer_off = st_off.get("oer", 0)
+    der_on = st_on.get("der", 0)
+    der_off = st_off.get("der", 0)
+    pm_on = st_on.get("plus_minus", 0)
+    pm_off = st_off.get("plus_minus", 0)
+
+    # 4. TARGETES KPI (5 columnes completes: Volum, Net, OER, DER, +/-)
+    k1, k2, k3, k4, k5 = st.columns(5)
+    
+    k1.metric(
+        "🏀 Possessions Jugades",
+        f"{disp_on_poss} ON · {disp_off_poss} OFF",
+        delta=f"Participació: {pct_poss:.0f}% del total",
+        delta_color="off",
+    )
+    k2.metric(
+        "⚡ Net Rating (Pts/100)",
+        f"{net_on:+.1f}",
+        delta=f"{net_on - net_off:+.1f} vs quan seu",
+    )
+    k3.metric(
+        "🎯 Eficiència Atac (OER)",
+        f"{oer_on:.1f} pts",
+        delta=f"{oer_on - oer_off:+.1f} pts/100 vs banqueta",
+    )
+    k4.metric(
+        "🛡️ Eficiència Defensa (DER)",
+        f"{der_on:.1f} pts",
+        delta=f"{der_on - der_off:+.1f} pts/100 vs banqueta",
+        delta_color="inverse",  # En defensa, encaixar menys punts és positiu
+    )
+    k5.metric(
+        "⚖️ Marcador +/- Real",
+        f"{int(pm_on):+d} pts",
+        delta=f"{int(pm_on - pm_off):+d} pts marge net",
+    )
+
+    st.markdown("---")
+
+    # 5. Taules d'Atac i Defensa (100% immunes a errors de minuts)
+    st.subheader(f"📊 Impacte On vs Off de {p_label}")
+    col_offense, col_defense = st.columns(2)
+
+    with col_offense:
+        st.markdown("#### 🔴 Atac d'Argentona")
+        df_offense = pd.DataFrame([
+            {"Mètrica": "1. Tir Efectiu (eFG%)", "Amb Jugador (ON)": f"{st_on.get('efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('efg', 0):.1f}%", "Diferencial": f"{st_on.get('efg',0)-st_off.get('efg',0):+.1f}%"},
+            {"Mètrica": "2. % Tir de 2 (2P%)", "Amb Jugador (ON)": f"{st_on.get('pct_2p', 0):.1f}% ({int(st_on.get('2pm',0))}/{int(st_on.get('2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_2p', 0):.1f}% ({int(st_off.get('2pm',0))}/{int(st_off.get('2pa',0))})", "Diferencial": f"{st_on.get('pct_2p',0)-st_off.get('pct_2p',0):+.1f}%"},
+            {"Mètrica": "3. % Triples (3P%)", "Amb Jugador (ON)": f"{st_on.get('pct_3p', 0):.1f}% ({int(st_on.get('3pm',0))}/{int(st_on.get('3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_3p', 0):.1f}% ({int(st_off.get('3pm',0))}/{int(st_off.get('3pa',0))})", "Diferencial": f"{st_on.get('pct_3p',0)-st_off.get('pct_3p',0):+.1f}%"},
+            {"Mètrica": "4. Ràtio de Triples (3PAr)", "Amb Jugador (ON)": f"{st_on.get('3par', 0):.1f}% dels tirs", "Sense Jugador (OFF)": f"{st_off.get('3par', 0):.1f}% dels tirs", "Diferencial": f"{st_on.get('3par',0)-st_off.get('3par',0):+.1f}%"},
+            {"Mètrica": "5. Eficiència Ofensiva (OER)", "Amb Jugador (ON)": f"{st_on.get('oer', 0):.1f} pts/100", "Sense Jugador (OFF)": f"{st_off.get('oer', 0):.1f} pts/100", "Diferencial": f"{st_on.get('oer',0)-st_off.get('oer',0):+.1f}"},
+            {"Mètrica": "% Rebot Ofensiu (OREB%)", "Amb Jugador (ON)": f"{st_on.get('oreb_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('oreb_pct', 0):.1f}%", "Diferencial": f"{st_on.get('oreb_pct',0)-st_off.get('oreb_pct',0):+.1f}%"},
+            {"Mètrica": "Ràtio de Pèrdues (TOV%)", "Amb Jugador (ON)": f"{st_on.get('tov_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('tov_pct', 0):.1f}%", "Diferencial": f"{st_on.get('tov_pct',0)-st_off.get('tov_pct',0):+.1f}%"},
+            {"Mètrica": "Freqüència TL (FT Rate)", "Amb Jugador (ON)": f"{st_on.get('ft_rate', 0):.2f}", "Sense Jugador (OFF)": f"{st_off.get('ft_rate', 0):.2f}", "Diferencial": f"{st_on.get('ft_rate',0)-st_off.get('ft_rate',0):+.2f}"},
+        ])
+        st.dataframe(df_offense, use_container_width=True, hide_index=True)
+
+    with col_defense:
+        st.markdown("#### 🛡️ Defensa (Rivals)")
+        df_defense = pd.DataFrame([
+            {"Mètrica": "1. Tir Efectiu Rival (eFG%)", "Amb Jugador (ON)": f"{st_on.get('opp_efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_efg', 0):.1f}%", "Diferencial": f"{st_on.get('opp_efg',0)-st_off.get('opp_efg',0):+.1f}%"},
+            {"Mètrica": "2. % Tir de 2 Rival (2P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_2p', 0):.1f}% ({int(st_on.get('opp_2pm',0))}/{int(st_on.get('opp_2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_2p', 0):.1f}% ({int(st_off.get('opp_2pm',0))}/{int(st_off.get('opp_2pa',0))})", "Diferencial": f"{st_on.get('opp_pct_2p',0)-st_off.get('opp_pct_2p',0):+.1f}%"},
+            {"Mètrica": "3. % Triples Rival (3P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_3p', 0):.1f}% ({int(st_on.get('opp_3pm',0))}/{int(st_on.get('opp_3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_3p', 0):.1f}% ({int(st_off.get('opp_3pm',0))}/{int(st_off.get('opp_3pa',0))})", "Diferencial": f"{st_on.get('opp_pct_3p',0)-st_off.get('opp_pct_3p',0):+.1f}%"},
+            {"Mètrica": "4. Ràtio Triples Rival (3PAr)", "Amb Jugador (ON)": f"{st_on.get('opp_3par', 0):.1f}% dels tirs", "Sense Jugador (OFF)": f"{st_off.get('opp_3par', 0):.1f}% dels tirs", "Diferencial": f"{st_on.get('opp_3par',0)-st_off.get('opp_3par',0):+.1f}%"},
+            {"Mètrica": "5. Eficiència Defensiva (DER)", "Amb Jugador (ON)": f"{st_on.get('der', 0):.1f} pts/100", "Sense Jugador (OFF)": f"{st_off.get('der', 0):.1f} pts/100", "Diferencial": f"{st_on.get('der',0)-st_off.get('der',0):+.1f}"},
+            {"Mètrica": "% Rebot Ofensiu Rival (OREB%)", "Amb Jugador (ON)": f"{st_on.get('opp_oreb_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_oreb_pct', 0):.1f}%", "Diferencial": f"{st_on.get('opp_oreb_pct',0)-st_off.get('opp_oreb_pct',0):+.1f}%"},
+            {"Mètrica": "Pèrdues Forçades Rival (TOV%)", "Amb Jugador (ON)": f"{st_on.get('opp_tov_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_tov_pct', 0):.1f}%", "Diferencial": f"{st_on.get('opp_tov_pct',0)-st_off.get('opp_tov_pct',0):+.1f}%"},
+            {"Mètrica": "Freqüència TL Rival (FT Rate)", "Amb Jugador (ON)": f"{st_on.get('opp_ft_rate', 0):.2f}", "Sense Jugador (OFF)": f"{st_off.get('opp_ft_rate', 0):.2f}", "Diferencial": f"{st_on.get('opp_ft_rate',0)-st_off.get('opp_ft_rate',0):+.2f}"},
+        ])
+        st.dataframe(df_defense, use_container_width=True, hide_index=True)
+
+    # 6. Taula de Quintets de 5 Jugadors
+    st.markdown("---")
+    st.subheader("👥 Quintets de 5 Jugadors")
+    col_q1, col_q2 = st.columns([1, 2])
+    with col_q1:
+        filter_player_lineups = st.checkbox(
+            f"Mostrar només quintets amb {p_label}",
+            value=False,
+            key=f"{key_prefix}_check_p_lineups"
+        )
+    with col_q2:
+        min_poss_val = st.slider(
+            "Possessions mínimes jugades pel quintet",
+            min_value=0,
+            max_value=100 if key_prefix == "season" else 30,
+            value=5 if key_prefix == "season" else 1,
+            step=1,
+            key=f"{key_prefix}_slider_lineup_poss"
+        )
+
+    target_lineups = df_on if filter_player_lineups else l_df
+    df_5man = get_5man_lineup_summary(target_lineups, b_df, min_minutes=0.0)
+
+    # Filtrem la taula directament per possessions reals
+    if not df_5man.empty and "POSS" in df_5man.columns:
+        df_5man = df_5man[df_5man["POSS"] >= min_poss_val].reset_index(drop=True)
+        # Eliminem la columna MIN de la taula si no és fiable
+        if "MIN" in df_5man.columns:
+            df_5man = df_5man.drop(columns=["MIN"])
+
+    if not df_5man.empty:
+        calc_h = int((len(df_5man) + 1) * 36) + 3
+        st.dataframe(
+            df_5man,
+            height=calc_h,
+            use_container_width=True,
+            hide_index=True,
+        )
+    else:
+        st.info("No hi ha quintets que compleixin els filtres de possessions seleccionats.")
 # =============================================================
 # MODO 1: PARTIT INDIVIDUAL
 # =============================================================
@@ -563,7 +762,7 @@ if view_mode == "Partit Individual":
     # Barra superior de navegació persistent
     active_tab = st.segmented_control(
         "Navegació",
-        options=["📈 Mètriques i 4 Factors", "📋 Box Score"],
+        options=["📈 Mètriques i 4 Factors", "📋 Box Score", "👥 Quintets i On/Off"],
         default="📈 Mètriques i 4 Factors",
         key="main_active_tab",
         label_visibility="collapsed",
@@ -1780,7 +1979,14 @@ if view_mode == "Partit Individual":
         else:
             st.info("No hi ha dades de Boxscore disponibles.")
 
-
+# -------------------------------------------------------------
+    # 3. SECCIÓ QUINTETS I ON/OFF (PARTIT INDIVIDUAL)
+    # -------------------------------------------------------------
+    elif active_tab == "👥 Quintets i On/Off":
+        g_line = lineups_df[lineups_df["game_id"].astype(str) == str(selected_game_id)].copy()
+        g_box = box_df[box_df["game_id"].astype(str) == str(selected_game_id)].copy()
+        render_on_off_dashboard(g_line, g_box, key_prefix="single")
+        
 # --- MODO 2: TOTALS ACUMULATS DE LA TEMPORADA ---
 else:
     st.title(f"🏆 Totals Acumulats ({selected_comp})")
@@ -1802,7 +2008,7 @@ else:
 
     active_tab_season = st.segmented_control(
         "Navegació Acumulats",
-        options=["📈 Mètriques i 4 Factors", "📋 Box Score"],
+        options=["📈 Mètriques i 4 Factors", "📋 Box Score", "👥 Quintets i On/Off"],
         default="📈 Mètriques i 4 Factors",
         key="season_active_tab",
         label_visibility="collapsed",
@@ -2981,3 +3187,8 @@ else:
                 render_boxscore(df_sorted, "Rebot")
         else:
             st.info("No hi ha dades acumulades de Boxscore disponibles.")
+    # -------------------------------------------------------------
+    # 3. SECCIÓ QUINTETS I ON/OFF (TOTALS ACUMULATS)
+    # -------------------------------------------------------------
+    elif active_tab_season == "👥 Quintets i On/Off":
+        render_on_off_dashboard(comp_lineups, comp_box, key_prefix="season")
