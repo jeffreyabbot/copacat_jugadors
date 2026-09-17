@@ -708,7 +708,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     k2.metric(
         "⚡ Net Rating (Pts/100)",
         f"{net_on:+.1f}",
-        delta=f"{net_on - net_off:+.1f} vs quan seu",
+        delta=f"{net_on - net_off:+.1f} vs off",
     )
     k3.metric(
         "🎯 Eficiència Atac (OER)",
