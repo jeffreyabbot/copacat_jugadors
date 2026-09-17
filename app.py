@@ -718,7 +718,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     k4.metric(
         "🛡️ Eficiència Defensa (DER)",
         f"{der_on:.1f} pts",
-        delta=f"{der_on - der_off:+.1f} pts/100 vs off",
+        delta=f"{der_off - der_on:+.1f} pts/100 vs off",
         delta_color="inverse",  # En defensa, encaixar menys punts és positiu
     )
     k5.metric(
