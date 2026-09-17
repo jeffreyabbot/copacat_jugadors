@@ -93,6 +93,27 @@ st.markdown(
         font-weight: 600;
         color: #495057;
     }
+    /* Ajust per a targetes mètriques estretes (5 columnes) */
+    .stMetric {
+        padding: 12px 10px !important; /* Guanyem 12px d'amplada útil per targeta */
+    }
+
+    /* Mida de text adaptable per al valor principal */
+    div[data-testid="stMetricValue"] > div {
+        white-space: normal !important;
+        font-size: 1.45rem !important; /* Lleugerament més compacte perquè càpiga '114 ON · 124 OFF' */
+        line-height: 1.15 !important;
+    }
+
+    /* Evitar que es talli el text del delta inferior */
+    div[data-testid="stMetricDelta"] {
+        white-space: normal !important;
+    }
+    div[data-testid="stMetricDelta"] > div {
+        white-space: normal !important;
+        font-size: 0.78rem !important;
+        line-height: 1.2 !important;
+    }
 
     /* 3. Deltes: 🔴 VERMELL per a Positiu / Avantatge */
     div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
@@ -681,7 +702,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     k1.metric(
         "🏀 Possessions Jugades",
         f"{disp_on_poss} ON · {disp_off_poss} OFF",
-        delta=f"Participació: {pct_poss:.0f}% del total",
+        delta=f"Temps joc: {pct_poss:.0f}% del total",
         delta_color="off",
     )
     k2.metric(
@@ -692,12 +713,12 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     k3.metric(
         "🎯 Eficiència Atac (OER)",
         f"{oer_on:.1f} pts",
-        delta=f"{oer_on - oer_off:+.1f} pts/100 vs banqueta",
+        delta=f"{oer_on - oer_off:+.1f} pts/100 vs off",
     )
     k4.metric(
         "🛡️ Eficiència Defensa (DER)",
         f"{der_on:.1f} pts",
-        delta=f"{der_on - der_off:+.1f} pts/100 vs banqueta",
+        delta=f"{der_on - der_off:+.1f} pts/100 vs off",
         delta_color="inverse",  # En defensa, encaixar menys punts és positiu
     )
     k5.metric(
