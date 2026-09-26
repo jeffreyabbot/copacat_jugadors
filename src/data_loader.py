@@ -49,122 +49,99 @@ def detect_file_sep_and_header(file_path: Path, keyword: str):
 
 
 def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
-    """Genera el títol automàtic enriquint amb Data, Equips, Resultat i Jornada/Amistós."""
+    """Genera les metadades prioritzant metadata.json, la carpeta pare i els noms dels equips."""
     folder_name = folder_path.name
 
-    # 1. Competició (de la carpeta pare)
-    if folder_path.parent != RAW_DATA_DIR:
+    # 1. Competició des de la carpeta pare
+    if folder_path.parent.resolve() != RAW_DATA_DIR.resolve():
         comp_str = folder_path.parent.name.replace("_", " ")
     else:
         comp_str = "Competicio"
 
-    # 2. Extreure Data i Equips dels fitxers CSV
     date_str = ""
     our_team = ""
     opponent = ""
+    round_str = ""
 
-    csv_files = [
-        f
-        for f in folder_path.iterdir()
-        if f.is_file() and f.suffix.lower() == ".csv"
-    ]
-    for csv_file in csv_files:
+    # 2. Si existeix metadata.json a la carpeta, LLEGIR-LO PRIMER
+    meta_json_file = folder_path / "metadata.json"
+    if meta_json_file.exists():
         try:
-            with open(csv_file, "r", encoding="utf-8", errors="ignore") as f:
-                first_line = f.readline().strip()
-            if "Game Date:" in first_line:
-                delim = ";" if ";" in first_line else ","
-                for item in first_line.split(delim):
-                    if "game date:" in item.lower():
-                        date_str = item.split(":", 1)[1].strip()
-                    elif "our team:" in item.lower():
-                        our_team = item.split(":", 1)[1].strip()
-                    elif "opponent:" in item.lower():
-                        opponent = item.split(":", 1)[1].strip()
-                if date_str:
-                    break
-        except Exception:
-            continue
+            with open(meta_json_file, "r", encoding="utf-8") as f:
+                j_data = json.load(f)
+                comp_str = j_data.get("competition", comp_str)
+                date_str = j_data.get("date", date_str)
+                our_team = j_data.get("our_team", our_team)
+                opponent = j_data.get("opponent", opponent)
+                round_str = j_data.get("round", round_str)
+        except Exception as e:
+            print(f"Avis llegint metadata.json a {folder_name}: {e}")
 
-    # Fallback de data pel nom de carpeta
+    # 3. Si encara no tenim data ni equips, llegir de la primera línia dels CSVs
+    if not date_str or not our_team or not opponent:
+        csv_files = [f for f in folder_path.iterdir() if f.is_file() and f.suffix.lower() == ".csv"]
+        for csv_file in csv_files:
+            try:
+                with open(csv_file, "r", encoding="latin-1", errors="ignore") as f:
+                    first_line = f.readline().strip()
+                if "game date:" in first_line.lower():
+                    delim = ";" if ";" in first_line else ","
+                    for item in first_line.split(delim):
+                        il = item.lower()
+                        if "game date:" in il and not date_str:
+                            date_str = item.split(":", 1)[1].strip()
+                        elif "our team:" in il and not our_team:
+                            val = item.split(":", 1)[1].strip()
+                            if val.lower() not in ["our team", "team"]:
+                                our_team = val
+                        elif "opponent:" in il and not opponent:
+                            val = item.split(":", 1)[1].strip()
+                            if val.lower() not in ["opponent", "rival"]:
+                                opponent = val
+            except Exception:
+                continue
+
+    # 4. Fallback intel·ligent a partir del nom de la carpeta (ex: 2026_09_26_CB_J1_Argentona_FC_Martinenc)
+    fn_clean = folder_name.replace("-", "_")
+    parts = fn_clean.split("_")
+    
     if not date_str:
-        parts = folder_name.split("_")
-        if len(parts) >= 3 and len(parts[0]) == 4:
+        if len(parts) >= 3 and len(parts[0]) == 4 and parts[0].isdigit():
             date_str = f"{parts[0]}-{parts[1]}-{parts[2]}"
         else:
             date_str = parts[0]
 
-    if not our_team:
-        our_team = "CB Argentona"
-    if not opponent:
-        opponent = "Rival"
+    # Detectar equips pel nom de la carpeta si venien com a "Our Team"
+    if not our_team or our_team.lower() in ["our team", "team"]:
+        if "argentona" in folder_name.lower():
+            our_team = "CB Argentona"
+        else:
+            our_team = "CB Argentona"
 
-    # 3. Detectar Jornada o Amistós del nom de la carpeta (ex: F1, F2, J01, Preseason)
-    round_str = ""
-    fn_upper = folder_name.upper()
+    if not opponent or opponent.lower() in ["opponent", "rival"]:
+        fn_l = folder_name.lower()
+        if "martinenc" in fn_l:
+            opponent = "FC Martinenc"
+        else:
+            opponent = "Rival"
 
-    match_j = re.search(r"\bJ(\d+)\b", fn_upper) or re.search(
-        r"_J(\d+)_", fn_upper
-    )
-    match_f = re.search(r"\bF(\d+)\b", fn_upper) or re.search(
-        r"_F(\d+)_", fn_upper
-    )
+    # 5. Detectar Jornada (ex: J1, J01)
+    if not round_str:
+        match_j = re.search(r"[_\b]J(\d+)[_\b]", folder_name.upper()) or re.search(r"\bJ(\d+)\b", folder_name.upper())
+        if match_j:
+            round_str = f"Jornada {int(match_j.group(1))}"
 
-    if match_j:
-        round_str = f"Jornada {int(match_j.group(1))}"
-    elif match_f:
-        round_str = f"Amistós {int(match_f.group(1))}"
-    elif "PRESEASON" in fn_upper or "PRETEMPORADA" in fn_upper:
-        round_str = "Pretemporada"
-    elif "FINAL" in fn_upper:
-        round_str = "Final"
-
-    # 4. Construir el text del resultat (ex: 84-54 o vs)
-    if score_team is not None and score_opp is not None:
-        score_txt = f"{int(score_team)}-{int(score_opp)}"
-    else:
-        score_txt = "vs"
-
-    # 5. Títol complet final
+    # 6. Títol net final
+    score_txt = f"{int(score_team)}-{int(score_opp)}" if score_team and score_opp else "vs"
+    
     if round_str:
-        readable_name = (
-            f"{date_str} - {our_team} {score_txt} {opponent} ({round_str})"
-        )
+        readable_name = f"{date_str} - {our_team} {score_txt} {opponent} ({round_str})"
     else:
         readable_name = f"{date_str} - {our_team} {score_txt} {opponent}"
 
-    # Llegir metadata.json si existeix a la carpeta del partit
-    meta_json_path = folder_path / "metadata.json"
-    pista_val = "Desconegut"
-    if meta_json_path.exists():
-        try:
-            with open(meta_json_path, "r", encoding="utf-8") as f:
-                mj = json.load(f)
-                pista_val = mj.get("pista") or mj.get("location") or "Desconegut"
-                if "date" in mj and mj["date"]:
-                    date_str = mj["date"]
-        except Exception:
-            pass
-
-    # Calcular el mes en català a partir de la data
-    month_names = {
-        1: "Gener", 2: "Febrer", 3: "Març", 4: "Abril",
-        5: "Maig", 6: "Juny", 7: "Juliol", 8: "Agost",
-        9: "Setembre", 10: "Octubre", 11: "Novembre", 12: "Desembre"
-    }
-    month_str = "Altres"
-    try:
-        m_dt = pd.to_datetime(date_str, errors="coerce")
-        if pd.notna(m_dt):
-            month_str = month_names.get(m_dt.month, "Altres")
-    except Exception:
-        pass
-
-    meta_dict = {
+    return {
         "game_id": folder_name,
         "date": date_str,
-        "month": month_str,
-        "pista": pista_val,
         "competition": comp_str,
         "our_team": our_team,
         "opponent": opponent,
@@ -173,9 +150,6 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
         "round": round_str,
         "name": readable_name,
     }
-
-    return meta_dict
-
 
 def parse_advanced_metrics(file_path: Path, game_id: str) -> pd.DataFrame:
     try:
