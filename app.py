@@ -60,44 +60,128 @@ st.markdown(
     """
 <style>
     /* --------------------------------------------------------- */
-    /* 1. CONTENIDOR PRINCIPAL (ESCRIPTORI)                      */
+    /* 1. CONFIGURACIÓ PER A ORDINADOR (PANTALLES > 768px)       */
     /* --------------------------------------------------------- */
-    [data-testid="stMainBlockContainer"],
-    [data-testid="stAppViewBlockContainer"],
-    .block-container,
-    .stMainBlockContainer,
-    section[data-testid="stMain"] > div {
-        max-width: 1300px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-        padding-top: 1.5rem !important;
-        padding-bottom: 2rem !important;
-        padding-left: 1.5rem !important;
-        padding-right: 1.5rem !important;
+    @media (min-width: 769px) {
+        [data-testid="stMainBlockContainer"],
+        .block-container,
+        section[data-testid="stMain"] > div {
+            max-width: 1300px !important;
+            margin-left: auto !important;
+            margin-right: auto !important;
+            padding-top: 1.5rem !important;
+            padding-bottom: 2rem !important;
+            padding-left: 1.5rem !important;
+            padding-right: 1.5rem !important;
+        }
+
+        /* Sidebar ample només a l'ordinador quan està obert */
+        [data-testid="stSidebar"][aria-expanded="true"] {
+            min-width: 360px !important;
+            max-width: 360px !important;
+        }
+
+        /* Targetes grans en ordinador */
+        .stMetric {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 16px;
+            min-height: 125px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        div[data-testid="stMetricValue"] {
+            font-size: 1.85rem;
+            font-weight: 700;
+            color: #212529;
+        }
+        div[data-testid="stMetricLabel"] {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #495057;
+        }
     }
 
     /* --------------------------------------------------------- */
-    /* 2. TARGETES KPI (ESCRIPTORI)                              */
+    /* 2. ADAPTACIÓ MÒBIL TOTAL (PANTALLES <= 768px)             */
     /* --------------------------------------------------------- */
-    .stMetric {
-        background-color: #f8f9fa;
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-        padding: 16px;
-        min-height: 125px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
-    div[data-testid="stMetricValue"] {
-        font-size: 1.85rem;
-        font-weight: 700;
-        color: #212529;
-    }
-    div[data-testid="stMetricLabel"] {
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: #495057;
+    @media (max-width: 768px) {
+        /* Evitar desplaçament horitzontal estrany */
+        html, body, .stApp {
+            overflow-x: hidden !important;
+            width: 100vw !important;
+        }
+
+        /* El contenidor aprofita el 100% de la pantalla del mòbil */
+        [data-testid="stMainBlockContainer"],
+        .block-container,
+        section[data-testid="stMain"] > div {
+            max-width: 100vw !important;
+            width: 100% !important;
+            padding-left: 0.75rem !important;
+            padding-right: 0.75rem !important;
+            padding-top: 1rem !important;
+            padding-bottom: 2rem !important;
+            margin: 0 !important;
+        }
+
+        /* Assegurar que el Sidebar tancat NO ocupa espai invisible */
+        [data-testid="stSidebar"] {
+            min-width: 0 !important;
+        }
+
+        /* Les 4 targetes es converteixen en una graella 2x2 perfecta */
+        div[data-testid="stHorizontalBlock"]:has(.stMetric) {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 8px !important;
+        }
+        div[data-testid="stHorizontalBlock"]:has(.stMetric) > div {
+            width: 100% !important;
+            min-width: 0 !important;
+        }
+
+        .stMetric {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 10px 8px !important;
+            min-height: 90px !important;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        div[data-testid="stMetricValue"] {
+            font-size: 1.3rem !important;
+            font-weight: 700;
+        }
+        div[data-testid="stMetricLabel"] {
+            font-size: 0.78rem !important;
+            line-height: 1.15 !important;
+            font-weight: 600;
+        }
+        div[data-testid="stMetricDelta"] {
+            font-size: 0.72rem !important;
+            padding: 2px 4px !important;
+        }
+
+        /* Títol gran adaptat al mòbil */
+        h1 {
+            font-size: 1.35rem !important;
+            line-height: 1.25 !important;
+        }
+        h2, h3 {
+            font-size: 1.1rem !important;
+        }
+
+        /* Selector de pestanyes amb desplaçament tàctil */
+        div[data-testid="stSegmentedControl"] {
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            padding-bottom: 4px !important;
+        }
     }
 
     /* --------------------------------------------------------- */
@@ -107,7 +191,7 @@ st.markdown(
         color: #d00000 !important;
         background-color: rgba(208, 0, 0, 0.12) !important;
         border-radius: 6px;
-        padding: 3px 8px;
+        padding: 3px 6px;
         width: fit-content;
         font-weight: 600;
     }
@@ -119,7 +203,7 @@ st.markdown(
         color: #0077b6 !important;
         background-color: rgba(0, 119, 182, 0.12) !important;
         border-radius: 6px;
-        padding: 3px 8px;
+        padding: 3px 6px;
         width: fit-content;
         font-weight: 600;
     }
@@ -127,67 +211,10 @@ st.markdown(
         fill: #0077b6 !important;
     }
 
-    /* --------------------------------------------------------- */
-    /* 4. BARRA LATERAL                                          */
-    /* --------------------------------------------------------- */
-    [data-testid="stSidebar"] {
-        min-width: min(360px, 85vw) !important;
-    }
+    /* Text del desplegable a la barra lateral */
     [data-testid="stSidebar"] div[data-baseweb="select"] div {
         white-space: normal !important;
         line-height: 1.3 !important;
-    }
-
-    /* --------------------------------------------------------- */
-    /* 5. ADAPTACIÓ MÒBIL AUTOMÀTICA (PANTALLES < 768px)         */
-    /* --------------------------------------------------------- */
-    @media (max-width: 768px) {
-        /* Aprofitar tota l'amplada de la pantalla del telèfon */
-        [data-testid="stMainBlockContainer"],
-        .block-container {
-            padding-left: 0.6rem !important;
-            padding-right: 0.6rem !important;
-            padding-top: 0.8rem !important;
-            padding-bottom: 1.5rem !important;
-        }
-
-        /* Targetes KPI compactes i proporcionades en mòbil */
-        .stMetric {
-            padding: 8px 6px !important;
-            min-height: 85px !important;
-            border-radius: 6px !important;
-        }
-        div[data-testid="stMetricValue"] {
-            font-size: 1.15rem !important;
-        }
-        div[data-testid="stMetricLabel"] {
-            font-size: 0.72rem !important;
-            line-height: 1.1 !important;
-        }
-        div[data-testid="stMetricDelta"] {
-            font-size: 0.68rem !important;
-            padding: 2px 4px !important;
-        }
-
-        /* Títols de pàgina adaptats a la pantalla petita */
-        h1 {
-            font-size: 1.35rem !important;
-        }
-        h2, h3 {
-            font-size: 1.1rem !important;
-        }
-
-        /* Selector de pestanyes amb desplaçament tàctil suau */
-        div[data-testid="stSegmentedControl"] {
-            overflow-x: auto !important;
-            white-space: nowrap !important;
-            padding-bottom: 6px !important;
-        }
-
-        /* Espaiat entre columnes en mòbil */
-        div[data-testid="stHorizontalBlock"] {
-            gap: 0.4rem !important;
-        }
     }
 </style>
 """,
