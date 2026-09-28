@@ -682,8 +682,8 @@ def style_boxscore(df_disp, mode="Tradicional"):
                     try:
                         if float(row["AST"]) >= 4:
                             css_df.loc[i, "AST"] = STYLE_RED
-                        except Exception:
-                            pass
+                    except Exception:
+                        pass
 
         return css_df
 
