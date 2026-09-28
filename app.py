@@ -122,11 +122,10 @@ st.markdown(
             width: 100% !important;
             padding-left: 0.75rem !important;
             padding-right: 0.75rem !important;
-            padding-top: 1rem !important;
+            padding-top: 4.2rem !important; /* 👈 Espai perquè la barra superior no tapi el títol */
             padding-bottom: 2rem !important;
             margin: 0 !important;
         }
-
         /* Assegurar que el Sidebar tancat NO ocupa espai invisible */
         [data-testid="stSidebar"] {
             min-width: 0 !important;
