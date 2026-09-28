@@ -598,31 +598,31 @@ def style_boxscore(df_disp, mode="Tradicional"):
 
     styler = df_disp.style.apply(apply_row_styles, axis=None)
 
+    # Formatar visualment amb '%' i decimals preservant l'ordenació matemàtica
     fmt_dict = {}
     for col in df_disp.columns:
-        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats", "% 2a Op."]:
-            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
-                fmt_dict[col] = "{:.0f}%"
-        elif (
-            "%" in col
-            or "eFG" in col
-            or "TOV" in col
-            or "OREB" in col
-            or "USG" in col
+        c_low = col.lower()
+        if any(
+            k in c_low
+            for k in ["%t2", "%t3", "%tl", "% taps", "% taps recuperats"]
         ):
             if df_disp[col].dtype in [float, np.float64, int, np.int64]:
+                fmt_dict[col] = "{:.0f}%"
+        elif any(k in c_low for k in ["%", "efg", "tov", "oreb", "usg"]):
+            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.1f}%"
-        elif col in ["FT Rate", "REB/Min"]:
-            if df_disp[col].dtype in [float, np.float64]:
+        elif any(k in c_low for k in ["rate", "ftr", "ft rate", "pts / ast"]):
+            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.2f}"
-        elif col in ["Plays", "PPP", "Reb/P"]:
-            if df_disp[col].dtype in [float, np.float64]:
+        elif any(k in c_low for k in ["plays", "ppp"]):
+            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.1f}"
 
     if fmt_dict:
         styler = styler.format(fmt_dict, na_rep="-")
 
     return styler
+
 import unicodedata
 
 def clean_txt(t):
