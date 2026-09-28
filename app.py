@@ -439,13 +439,6 @@ STYLE_NEUTRAL = "color: #212529; font-weight: 400; text-align: right;"
 
 
 def style_boxscore(df_disp, mode="Tradicional"):
-    def to_f(val, default=-999999.0):
-        try:
-            v = float(val)
-            return v if not pd.isna(v) else default
-        except Exception:
-            return default
-
     def apply_row_styles(df):
         css_df = pd.DataFrame(
             "text-align: right;", index=df.index, columns=df.columns
@@ -457,45 +450,14 @@ def style_boxscore(df_disp, mode="Tradicional"):
         if "#" in df.columns:
             css_df["#"] = "text-align: center;"
 
-        # Detectem si estem en acumulats (té PJ, o mode acumulat, o valors alts d'assistències totals)
-        max_ast_val = to_f(df["AST"].max()) if "AST" in df.columns else 0.0
-        is_accumulated = ("PJ" in df.columns) or ("acumulat" in str(mode).lower()) or (max_ast_val > 6.0)
-
-        # Pre-càlcul d'outliers de plantilla per als totals acumulats (Opció A)
-        col_outliers = {}
-        if is_accumulated:
-            for c in df.columns:
-                num_s = pd.to_numeric(df[c], errors="coerce")
-                if num_s.notna().sum() >= 3:
-                    m = num_s.mean()
-                    s = num_s.std()
-                    if s > 0:
-                        col_outliers[c] = (m, s)
-
-        # Funcions per comprovar si un valor destaca positivament (vermell) o negativament (blau)
-        def is_high_outlier(col_name, val, single_threshold):
-            v = to_f(val)
-            if is_accumulated and col_name in col_outliers:
-                m, s = col_outliers[col_name]
-                return v >= (m + 0.75 * s) and v > 0
-            return v >= single_threshold
-
-        def is_bad_outlier(col_name, val, single_threshold):
-            v = to_f(val)
-            if is_accumulated and col_name in col_outliers:
-                m, s = col_outliers[col_name]
-                return v >= (m + 0.75 * s) and v > 0
-            return v >= single_threshold
-
         for i in df.index:
             row = df.loc[i]
-            min_attempts = 6 if is_accumulated else 2
 
             # 1. Tradicional
             if mode == "Tradicional":
                 if "%T2" in df.columns and "T2 (A/I)" in df.columns:
                     m, a = parse_fraction(row["T2 (A/I)"])
-                    if a >= min_attempts:
+                    if a >= 2:
                         pct = (m / a) * 100
                         if pct >= 70:
                             css_df.loc[i, "%T2"] = STYLE_RED
@@ -504,7 +466,7 @@ def style_boxscore(df_disp, mode="Tradicional"):
 
                 if "%T3" in df.columns and "T3 (A/I)" in df.columns:
                     m, a = parse_fraction(row["T3 (A/I)"])
-                    if a >= min_attempts:
+                    if a >= 2:
                         pct = (m / a) * 100
                         if pct >= 50:
                             css_df.loc[i, "%T3"] = STYLE_RED
@@ -513,28 +475,108 @@ def style_boxscore(df_disp, mode="Tradicional"):
 
                 if "%TL" in df.columns and "TL (A/I)" in df.columns:
                     m, a = parse_fraction(row["TL (A/I)"])
-                    if a >= min_attempts:
+                    if a >= 2:
                         pct = (m / a) * 100
                         if pct >= 85:
                             css_df.loc[i, "%TL"] = STYLE_RED
                         elif pct <= 40:
                             css_df.loc[i, "%TL"] = STYLE_BLUE
 
-                if "REB_T" in df.columns and is_high_outlier("REB_T", row["REB_T"], 6):
-                    css_df.loc[i, "REB_T"] = STYLE_RED
-                if "AST" in df.columns and is_high_outlier("AST", row["AST"], 4):
-                    css_df.loc[i, "AST"] = STYLE_RED
-                if "REC" in df.columns and is_high_outlier("REC", row["REC"], 3):
-                    css_df.loc[i, "REC"] = STYLE_RED
-                if "PER" in df.columns and is_bad_outlier("PER", row["PER"], 3):
-                    css_df.loc[i, "PER"] = STYLE_BLUE
+                if "REB_T" in df.columns:
+                    try:
+                        if float(row["REB_T"]) >= 6:
+                            css_df.loc[i, "REB_T"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "AST" in df.columns:
+                    try:
+                        if float(row["AST"]) >= 4:
+                            css_df.loc[i, "AST"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "REC" in df.columns:
+                    try:
+                        if float(row["REC"]) >= 3:
+                            css_df.loc[i, "REC"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "PER" in df.columns:
+                    try:
+                        if float(row["PER"]) >= 3:
+                            css_df.loc[i, "PER"] = STYLE_BLUE
+                    except Exception:
+                        pass
 
-            # 2. Zones de tir (Percentatges)
+                # VALORACIÓ DESTACADA (VAL >= 15 -> Vermell, VAL < 0 -> Blau)
+                if "VAL" in df.columns:
+                    try:
+                        v = float(row["VAL"])
+                        if v >= 15:
+                            css_df.loc[i, "VAL"] = STYLE_RED
+                        elif v < 0:
+                            css_df.loc[i, "VAL"] = STYLE_BLUE
+                    except Exception:
+                        pass
+
+                if "VPP" in df.columns:
+                    try:
+                        v = float(row["VPP"])
+                        if v >= 15.0:
+                            css_df.loc[i, "VPP"] = STYLE_RED
+                        elif v <= 0:
+                            css_df.loc[i, "VPP"] = STYLE_BLUE
+                    except Exception:
+                        pass
+
+            # 2. 4 Factors Individuals
+            elif mode == "4Factors":
+                if "USG%" in df.columns:
+                    try:
+                        if float(row["USG%"]) >= 28.0:
+                            css_df.loc[i, "USG%"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "1. eFG% (Tir)" in df.columns:
+                    try:
+                        v = float(row["1. eFG% (Tir)"])
+                        if v >= 60.0:
+                            css_df.loc[i, "1. eFG% (Tir)"] = STYLE_RED
+                        elif v <= 35.0 and v > 0:
+                            css_df.loc[i, "1. eFG% (Tir)"] = STYLE_BLUE
+                    except Exception:
+                        pass
+                if "2. TOV% (Pèrdues)" in df.columns:
+                    try:
+                        v = float(row["2. TOV% (Pèrdues)"])
+                        if v <= 8.0 and v >= 0:
+                            css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_RED
+                        elif v >= 25.0:
+                            css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_BLUE
+                    except Exception:
+                        pass
+                if "3. OREB% (Rebot)" in df.columns:
+                    try:
+                        if float(row["3. OREB% (Rebot)"]) >= 12.0:
+                            css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "4. FT Rate (TL)" in df.columns:
+                    try:
+                        if float(row["4. FT Rate (TL)"]) >= 0.25:
+                            css_df.loc[i, "4. FT Rate (TL)"] = STYLE_RED
+                    except Exception:
+                        pass
+
+            # 3. Zones de tir
             elif mode == "Zones":
-                for col in ["Aro (Rim)", "Pintura (Paint)", "Mitja Distància (MR)"]:
+                for col in [
+                    "Aro (Rim)",
+                    "Pintura (Paint)",
+                    "Mitja Distància (MR)",
+                ]:
                     if col in df.columns:
                         m, a = parse_fraction(row[col])
-                        if a >= min_attempts:
+                        if a >= 2:
                             pct = (m / a) * 100
                             if pct >= 70:
                                 css_df.loc[i, col] = STYLE_RED
@@ -544,127 +586,129 @@ def style_boxscore(df_disp, mode="Tradicional"):
                 for col in ["Triple Cantonada (C3)", "Triple Frontal (ATB3)"]:
                     if col in df.columns:
                         m, a = parse_fraction(row[col])
-                        if a >= min_attempts:
+                        if a >= 2:
                             pct = (m / a) * 100
                             if pct >= 50:
                                 css_df.loc[i, col] = STYLE_RED
                             elif pct <= 15:
                                 css_df.loc[i, col] = STYLE_BLUE
 
-            # 3. 4 Factors Individuals (Percentatges i ràtios nacionals)
-            elif mode == "4Factors":
-                if "USG%" in df.columns and to_f(row["USG%"]) >= 28.0:
-                    css_df.loc[i, "USG%"] = STYLE_RED
-                if "1. eFG% (Tir)" in df.columns:
-                    v = to_f(row["1. eFG% (Tir)"])
-                    if v >= 60.0:
-                        css_df.loc[i, "1. eFG% (Tir)"] = STYLE_RED
-                    elif 0 < v <= 35.0:
-                        css_df.loc[i, "1. eFG% (Tir)"] = STYLE_BLUE
-                if "2. TOV% (Pèrdues)" in df.columns:
-                    v = to_f(row["2. TOV% (Pèrdues)"])
-                    if 0 <= v <= 8.0:
-                        css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_RED
-                    elif v >= 25.0:
-                        css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_BLUE
-                if "3. OREB% (Rebot)" in df.columns and to_f(row["3. OREB% (Rebot)"]) >= 12.0:
-                    css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
-                if "4. FT Rate (TL)" in df.columns and to_f(row["4. FT Rate (TL)"]) >= 0.25:
-                    css_df.loc[i, "4. FT Rate (TL)"] = STYLE_RED
+            # 4. Accions Defensives
+            elif mode == "Defensa":
+                if "Defleccions" in df.columns:
+                    try:
+                        if float(row["Defleccions"]) >= 3:
+                            css_df.loc[i, "Defleccions"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "Robatoris (REC)" in df.columns:
+                    try:
+                        if float(row["Robatoris (REC)"]) >= 2:
+                            css_df.loc[i, "Robatoris (REC)"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "Taps Totals (TAP)" in df.columns:
+                    try:
+                        if float(row["Taps Totals (TAP)"]) >= 2:
+                            css_df.loc[i, "Taps Totals (TAP)"] = STYLE_RED
+                    except Exception:
+                        pass
+                if "Impacte Defensiu (Total)" in df.columns:
+                    try:
+                        if float(row["Impacte Defensiu (Total)"]) >= 5:
+                            css_df.loc[i, "Impacte Defensiu (Total)"] = (
+                                STYLE_RED
+                            )
+                    except Exception:
+                        pass
 
-            # 4. Impacte i Context
-            elif "context" in str(mode).lower() or "impacte" in str(mode).lower():
+            # 5. Impacte i Context
+            elif (
+                "context" in str(mode).lower() or "impacte" in str(mode).lower()
+            ):
                 if "Transició" in df.columns:
                     m, a = parse_fraction(row["Transició"])
-                    if m >= min_attempts:
+                    if m >= 2:
                         css_df.loc[i, "Transició"] = STYLE_RED
-                    elif a >= min_attempts and m == 0:
+                    elif a >= 2 and m == 0:
                         css_df.loc[i, "Transició"] = STYLE_BLUE
 
                 if "2a Oportunitat" in df.columns:
                     m, a = parse_fraction(row["2a Oportunitat"])
-                    if m >= min_attempts:
+                    if m >= 2:
                         css_df.loc[i, "2a Oportunitat"] = STYLE_RED
-                    elif a >= min_attempts and m == 0:
+                    elif a >= 2 and m == 0:
                         css_df.loc[i, "2a Oportunitat"] = STYLE_BLUE
 
                 for per_col in ["PER Totals", "Pèrdues"]:
-                    if per_col in df.columns and is_bad_outlier(per_col, row[per_col], 3):
-                        css_df.loc[i, per_col] = STYLE_BLUE
+                    if per_col in df.columns:
+                        try:
+                            if float(row[per_col]) >= 3:
+                                css_df.loc[i, per_col] = STYLE_BLUE
+                        except Exception:
+                            pass
 
-                if "Vives (LTO)" in df.columns and is_bad_outlier("Vives (LTO)", row["Vives (LTO)"], 2):
-                    css_df.loc[i, "Vives (LTO)"] = STYLE_BLUE
-                if "Faltes Com." in df.columns and is_bad_outlier("Faltes Com.", row["Faltes Com."], 4):
-                    css_df.loc[i, "Faltes Com."] = STYLE_BLUE
-                if "Faltes Reb." in df.columns and is_high_outlier("Faltes Reb.", row["Faltes Reb."], 4):
-                    css_df.loc[i, "Faltes Reb."] = STYLE_RED
+                if "Vives (LTO)" in df.columns:
+                    try:
+                        if float(row["Vives (LTO)"]) >= 2:
+                            css_df.loc[i, "Vives (LTO)"] = STYLE_BLUE
+                    except Exception:
+                        pass
 
-            # 5. Accions Defensives (Amb Outliers a Acumulats)
-            elif mode == "Defensa":
-                if "Defleccions" in df.columns and is_high_outlier("Defleccions", row["Defleccions"], 3):
-                    css_df.loc[i, "Defleccions"] = STYLE_RED
-                if "Robatoris (REC)" in df.columns and is_high_outlier("Robatoris (REC)", row["Robatoris (REC)"], 2):
-                    css_df.loc[i, "Robatoris (REC)"] = STYLE_RED
-                if "Taps Totals (TAP)" in df.columns and is_high_outlier("Taps Totals (TAP)", row["Taps Totals (TAP)"], 2):
-                    css_df.loc[i, "Taps Totals (TAP)"] = STYLE_RED
-                if "Impacte Defensiu (Total)" in df.columns and is_high_outlier("Impacte Defensiu (Total)", row["Impacte Defensiu (Total)"], 5):
-                    css_df.loc[i, "Impacte Defensiu (Total)"] = STYLE_RED
+                if "Faltes Com." in df.columns:
+                    try:
+                        if float(row["Faltes Com."]) >= 4:
+                            css_df.loc[i, "Faltes Com."] = STYLE_BLUE
+                    except Exception:
+                        pass
+
+                if "Faltes Reb." in df.columns:
+                    try:
+                        if float(row["Faltes Reb."]) >= 4:
+                            css_df.loc[i, "Faltes Reb."] = STYLE_RED
+                    except Exception:
+                        pass
 
             # 6. Assistències
             elif "assist" in str(mode).lower():
                 for pts_col in ["PTS Generats", "Punts Generats"]:
-                    if pts_col in df.columns and is_high_outlier(pts_col, row[pts_col], 8):
-                        css_df.loc[i, pts_col] = STYLE_RED
-                if "AST" in df.columns and is_high_outlier("AST", row["AST"], 4):
-                    css_df.loc[i, "AST"] = STYLE_RED
-
-            # 7. Rebot i Segona Oportunitat
-            elif "rebot" in str(mode).lower():
-                if "REB_T" in df.columns and is_high_outlier("REB_T", row["REB_T"], 6):
-                    css_df.loc[i, "REB_T"] = STYLE_RED
-                if "REB_O" in df.columns and is_high_outlier("REB_O", row["REB_O"], 3):
-                    css_df.loc[i, "REB_O"] = STYLE_RED
-                if "Pts 2a Op." in df.columns and is_high_outlier("Pts 2a Op.", row["Pts 2a Op."], 4):
-                    css_df.loc[i, "Pts 2a Op."] = STYLE_RED
-                if "Fallades 2a Op." in df.columns and is_bad_outlier("Fallades 2a Op.", row["Fallades 2a Op."], 2):
-                    css_df.loc[i, "Fallades 2a Op."] = STYLE_BLUE
-                if "% 2a Op." in df.columns:
-                    v = to_f(row["% 2a Op."])
-                    if v >= 65.0:
-                        css_df.loc[i, "% 2a Op."] = STYLE_RED
-                    elif 0 < v <= 30.0:
-                        css_df.loc[i, "% 2a Op."] = STYLE_BLUE
-                if "OREB%" in df.columns and to_f(row["OREB%"]) >= 12.0:
-                    css_df.loc[i, "OREB%"] = STYLE_RED
-                if "REB/Min" in df.columns:
-                    v_rm = to_f(row["REB/Min"])
-                    if v_rm >= 0.35:
-                        css_df.loc[i, "REB/Min"] = STYLE_RED
-                    elif 0 <= v_rm <= 0.12 and to_f(row.get("REB_T", 0)) <= 3:
-                        css_df.loc[i, "REB/Min"] = STYLE_BLUE
+                    if pts_col in df.columns:
+                        try:
+                            if float(row[pts_col]) >= 8:
+                                css_df.loc[i, pts_col] = STYLE_RED
+                        except Exception:
+                            pass
+                if "AST" in df.columns:
+                    try:
+                        if float(row["AST"]) >= 4:
+                            css_df.loc[i, "AST"] = STYLE_RED
+                        except Exception:
+                            pass
 
         return css_df
 
     styler = df_disp.style.apply(apply_row_styles, axis=None)
 
-    # Formatar visualment amb '%' i decimals preservant l'ordenació matemàtica
+    # Formatar numèricament amb % i decimals preservant l'ordenació
     fmt_dict = {}
     for col in df_disp.columns:
-        c_low = col.lower()
-        if any(
-            k in c_low
-            for k in ["%t2", "%t3", "%tl", "% taps", "% taps recuperats"]
-        ):
+        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats"]:
             if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.0f}%"
-        elif any(k in c_low for k in ["%", "efg", "tov", "oreb", "usg"]):
+        elif (
+            "%" in col
+            or "eFG" in col
+            or "TOV" in col
+            or "OREB" in col
+            or "USG" in col
+        ):
             if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.1f}%"
-        elif any(k in c_low for k in ["rate", "ftr", "ft rate", "pts / ast"]):
-            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
+        elif "FT Rate" in col:
+            if df_disp[col].dtype in [float, np.float64]:
                 fmt_dict[col] = "{:.2f}"
-        elif any(k in c_low for k in ["plays", "ppp"]):
-            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
+        elif col in ["Plays", "PPP", "VPP"]:
+            if df_disp[col].dtype in [float, np.float64]:
                 fmt_dict[col] = "{:.1f}"
 
     if fmt_dict:
@@ -1752,82 +1796,51 @@ if view_mode == "Partit Individual":
                 df_trad["#"] = g_box["Player"]
                 df_trad["Jugador"] = g_box["Name"]
                 df_trad["MIN"] = g_box["MIN"].astype(str).str.strip()
-                df_trad["PTS"] = g_box["Points"].astype(int)
 
-                t2m = pd.to_numeric(g_box["2PM"], errors="coerce").fillna(0)
-                t2a = pd.to_numeric(g_box["2PA"], errors="coerce").fillna(0)
-                df_trad["T2 (A/I)"] = (
-                    t2m.astype(int).astype(str)
-                    + "/"
-                    + t2a.astype(int).astype(str)
-                )
-                df_trad["%T2"] = (
-                    (t2m / t2a.replace(0, np.nan)) * 100.0
-                ).fillna(0.0)
+                pts = pd.to_numeric(g_box["Points"], errors="coerce").fillna(0).astype(int)
+                df_trad["PTS"] = pts
 
-                t3m = pd.to_numeric(g_box["3PM"], errors="coerce").fillna(0)
-                t3a = pd.to_numeric(g_box["3PA"], errors="coerce").fillna(0)
-                df_trad["T3 (A/I)"] = (
-                    t3m.astype(int).astype(str)
-                    + "/"
-                    + t3a.astype(int).astype(str)
-                )
-                df_trad["%T3"] = (
-                    (t3m / t3a.replace(0, np.nan)) * 100.0
-                ).fillna(0.0)
+                t2m = pd.to_numeric(g_box["2PM"], errors="coerce").fillna(0).astype(int)
+                t2a = pd.to_numeric(g_box["2PA"], errors="coerce").fillna(0).astype(int)
+                df_trad["T2 (A/I)"] = t2m.astype(str) + "/" + t2a.astype(str)
+                df_trad["%T2"] = ((t2m / t2a.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                ftm = pd.to_numeric(g_box["FTM"], errors="coerce").fillna(0)
-                fta = pd.to_numeric(g_box["FTA"], errors="coerce").fillna(0)
-                df_trad["TL (A/I)"] = (
-                    ftm.astype(int).astype(str)
-                    + "/"
-                    + fta.astype(int).astype(str)
-                )
-                df_trad["%TL"] = (
-                    (ftm / fta.replace(0, np.nan)) * 100.0
-                ).fillna(0.0)
+                t3m = pd.to_numeric(g_box["3PM"], errors="coerce").fillna(0).astype(int)
+                t3a = pd.to_numeric(g_box["3PA"], errors="coerce").fillna(0).astype(int)
+                df_trad["T3 (A/I)"] = t3m.astype(str) + "/" + t3a.astype(str)
+                df_trad["%T3"] = ((t3m / t3a.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                df_trad["REB_O"] = (
-                    pd.to_numeric(g_box["Off Reb"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["REB_D"] = (
-                    pd.to_numeric(g_box["Def Reb"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["REB_T"] = df_trad["REB_O"] + df_trad["REB_D"]
-                df_trad["AST"] = (
-                    pd.to_numeric(g_box["Assists"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["REC"] = (
-                    pd.to_numeric(g_box["Steals"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["TAP"] = (
-                    pd.to_numeric(g_box["Blocks"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["PER"] = (
-                    pd.to_numeric(g_box["Turnovers"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["FAL"] = (
-                    pd.to_numeric(g_box["Fouls"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_trad["F_REC"] = (
-                    pd.to_numeric(g_box["Fouls Drawn"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
+                ftm = pd.to_numeric(g_box["FTM"], errors="coerce").fillna(0).astype(int)
+                fta = pd.to_numeric(g_box["FTA"], errors="coerce").fillna(0).astype(int)
+                df_trad["TL (A/I)"] = ftm.astype(str) + "/" + fta.astype(str)
+                df_trad["%TL"] = ((ftm / fta.replace(0, np.nan)) * 100.0).fillna(0.0)
+
+                reb_o = pd.to_numeric(g_box["Off Reb"], errors="coerce").fillna(0).astype(int)
+                reb_d = pd.to_numeric(g_box["Def Reb"], errors="coerce").fillna(0).astype(int)
+                reb_t = reb_o + reb_d
+                df_trad["REB_O"] = reb_o
+                df_trad["REB_D"] = reb_d
+                df_trad["REB_T"] = reb_t
+
+                ast = pd.to_numeric(g_box["Assists"], errors="coerce").fillna(0).astype(int)
+                rec = pd.to_numeric(g_box["Steals"], errors="coerce").fillna(0).astype(int)
+                tap = pd.to_numeric(g_box["Blocks"], errors="coerce").fillna(0).astype(int)
+                per = pd.to_numeric(g_box["Turnovers"], errors="coerce").fillna(0).astype(int)
+                fal = pd.to_numeric(g_box["Fouls"], errors="coerce").fillna(0).astype(int)
+                f_rec = pd.to_numeric(g_box["Fouls Drawn"], errors="coerce").fillna(0).astype(int)
+
+                df_trad["AST"] = ast
+                df_trad["REC"] = rec
+                df_trad["TAP"] = tap
+                df_trad["PER"] = per
+                df_trad["FAL"] = fal
+                df_trad["F_REC"] = f_rec
+
+                # CÀLCUL OFICIAL DE VALORACIÓ (VAL / PIR)
+                positius = pts + reb_t + ast + rec + tap + f_rec
+                negatius = (t2a - t2m) + (t3a - t3m) + (fta - ftm) + per + fal
+                val_total = (positius - negatius).astype(int)
+                df_trad["VAL"] = val_total
 
                 df_trad["_dorsal_sort"] = (
                     df_trad["#"].astype(str).str.replace("#", "").str.strip()
@@ -2987,55 +3000,53 @@ else:
                 df_trad_s["#"] = p_agg["Player"]
                 df_trad_s["Jugador"] = p_agg["Name"]
                 df_trad_s["PJ"] = p_agg["PJ"].astype(int)
-                df_trad_s["PTS"] = p_agg["PTS"].astype(int)
+                
+                pts = pd.to_numeric(p_agg["PTS"], errors="coerce").fillna(0).astype(int)
+                df_trad_s["PTS"] = pts
+                df_trad_s["PPP"] = (pts / p_agg["PJ"].replace(0, np.nan)).fillna(0.0)
 
-                # PPP com a número
-                df_trad_s["PPP"] = (
-                    p_agg["PTS"] / p_agg["PJ"].replace(0, np.nan)
-                ).fillna(0.0)
+                t2m = pd.to_numeric(p_agg["T2M"], errors="coerce").fillna(0).astype(int)
+                t2a = pd.to_numeric(p_agg["T2A"], errors="coerce").fillna(0).astype(int)
+                df_trad_s["T2 (A/I)"] = t2m.astype(str) + "/" + t2a.astype(str)
+                df_trad_s["%T2"] = ((t2m / t2a.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                t2m = pd.to_numeric(p_agg["T2M"], errors="coerce").fillna(0)
-                t2a = pd.to_numeric(p_agg["T2A"], errors="coerce").fillna(0)
-                df_trad_s["T2 (A/I)"] = (
-                    t2m.astype(int).astype(str)
-                    + "/"
-                    + t2a.astype(int).astype(str)
-                )
-                df_trad_s["%T2"] = (
-                    (t2m / t2a.replace(0, np.nan)) * 100.0
-                ).fillna(0.0)
+                t3m = pd.to_numeric(p_agg["T3M"], errors="coerce").fillna(0).astype(int)
+                t3a = pd.to_numeric(p_agg["T3A"], errors="coerce").fillna(0).astype(int)
+                df_trad_s["T3 (A/I)"] = t3m.astype(str) + "/" + t3a.astype(str)
+                df_trad_s["%T3"] = ((t3m / t3a.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                t3m = pd.to_numeric(p_agg["T3M"], errors="coerce").fillna(0)
-                t3a = pd.to_numeric(p_agg["T3A"], errors="coerce").fillna(0)
-                df_trad_s["T3 (A/I)"] = (
-                    t3m.astype(int).astype(str)
-                    + "/"
-                    + t3a.astype(int).astype(str)
-                )
-                df_trad_s["%T3"] = (
-                    (t3m / t3a.replace(0, np.nan)) * 100.0
-                ).fillna(0.0)
+                ftm = pd.to_numeric(p_agg["FTM"], errors="coerce").fillna(0).astype(int)
+                fta = pd.to_numeric(p_agg["FTA"], errors="coerce").fillna(0).astype(int)
+                df_trad_s["TL (A/I)"] = ftm.astype(str) + "/" + fta.astype(str)
+                df_trad_s["%TL"] = ((ftm / fta.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                ftm = pd.to_numeric(p_agg["FTM"], errors="coerce").fillna(0)
-                fta = pd.to_numeric(p_agg["FTA"], errors="coerce").fillna(0)
-                df_trad_s["TL (A/I)"] = (
-                    ftm.astype(int).astype(str)
-                    + "/"
-                    + fta.astype(int).astype(str)
-                )
-                df_trad_s["%TL"] = (
-                    (ftm / fta.replace(0, np.nan)) * 100.0
-                ).fillna(0.0)
+                reb_o = pd.to_numeric(p_agg["REB_O"], errors="coerce").fillna(0).astype(int)
+                reb_d = pd.to_numeric(p_agg["REB_D"], errors="coerce").fillna(0).astype(int)
+                reb_t = reb_o + reb_d
+                df_trad_s["REB_O"] = reb_o
+                df_trad_s["REB_D"] = reb_d
+                df_trad_s["REB_T"] = reb_t
 
-                df_trad_s["REB_O"] = p_agg["REB_O"].astype(int)
-                df_trad_s["REB_D"] = p_agg["REB_D"].astype(int)
-                df_trad_s["REB_T"] = df_trad_s["REB_O"] + df_trad_s["REB_D"]
-                df_trad_s["AST"] = p_agg["AST"].astype(int)
-                df_trad_s["REC"] = p_agg["REC"].astype(int)
-                df_trad_s["TAP"] = p_agg["TAP"].astype(int)
-                df_trad_s["PER"] = p_agg["PER"].astype(int)
-                df_trad_s["FAL"] = p_agg["FAL"].astype(int)
-                df_trad_s["F_REC"] = p_agg["F_REC"].astype(int)
+                ast = pd.to_numeric(p_agg["AST"], errors="coerce").fillna(0).astype(int)
+                rec = pd.to_numeric(p_agg["REC"], errors="coerce").fillna(0).astype(int)
+                tap = pd.to_numeric(p_agg["TAP"], errors="coerce").fillna(0).astype(int)
+                per = pd.to_numeric(p_agg["PER"], errors="coerce").fillna(0).astype(int)
+                fal = pd.to_numeric(p_agg["FAL"], errors="coerce").fillna(0).astype(int)
+                f_rec = pd.to_numeric(p_agg["F_REC"], errors="coerce").fillna(0).astype(int)
+
+                df_trad_s["AST"] = ast
+                df_trad_s["REC"] = rec
+                df_trad_s["TAP"] = tap
+                df_trad_s["PER"] = per
+                df_trad_s["FAL"] = fal
+                df_trad_s["F_REC"] = f_rec
+
+                # VALORACIÓ TOTAL I VALORACIÓ PER PARTIT (VPP)
+                positius = pts + reb_t + ast + rec + tap + f_rec
+                negatius = (t2a - t2m) + (t3a - t3m) + (fta - ftm) + per + fal
+                val_tot = (positius - negatius).astype(int)
+                df_trad_s["VAL"] = val_tot
+                df_trad_s["VPP"] = (val_tot / p_agg["PJ"].replace(0, np.nan)).fillna(0.0)
 
                 df_trad_s["_dorsal_sort"] = (
                     df_trad_s["#"].astype(str).str.replace("#", "").str.strip()

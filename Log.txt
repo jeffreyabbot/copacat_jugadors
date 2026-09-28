@@ -28,3 +28,4 @@ v1.8
 - Afegir tab Lineups
 v1.9
 Format correcte per mòbil
+Afegir PER
