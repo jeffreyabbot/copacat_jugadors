@@ -59,7 +59,9 @@ if not check_password():
 st.markdown(
     """
 <style>
-    /* 1. LIMITAR AMPLADA A TOTES LES VERSIONS DE STREAMLIT */
+    /* --------------------------------------------------------- */
+    /* 1. CONTENIDOR PRINCIPAL (ESCRIPTORI)                      */
+    /* --------------------------------------------------------- */
     [data-testid="stMainBlockContainer"],
     [data-testid="stAppViewBlockContainer"],
     .block-container,
@@ -70,9 +72,13 @@ st.markdown(
         margin-right: auto !important;
         padding-top: 1.5rem !important;
         padding-bottom: 2rem !important;
+        padding-left: 1.5rem !important;
+        padding-right: 1.5rem !important;
     }
 
-    /* 2. Targetes KPI de mida uniforme */
+    /* --------------------------------------------------------- */
+    /* 2. TARGETES KPI (ESCRIPTORI)                              */
+    /* --------------------------------------------------------- */
     .stMetric {
         background-color: #f8f9fa;
         border: 1px solid #e9ecef;
@@ -93,29 +99,10 @@ st.markdown(
         font-weight: 600;
         color: #495057;
     }
-    /* Ajust per a targetes mètriques estretes (5 columnes) */
-    .stMetric {
-        padding: 12px 10px !important; /* Guanyem 12px d'amplada útil per targeta */
-    }
 
-    /* Mida de text adaptable per al valor principal */
-    div[data-testid="stMetricValue"] > div {
-        white-space: normal !important;
-        font-size: 1.45rem !important; /* Lleugerament més compacte perquè càpiga '114 ON · 124 OFF' */
-        line-height: 1.15 !important;
-    }
-
-    /* Evitar que es talli el text del delta inferior */
-    div[data-testid="stMetricDelta"] {
-        white-space: normal !important;
-    }
-    div[data-testid="stMetricDelta"] > div {
-        white-space: normal !important;
-        font-size: 0.78rem !important;
-        line-height: 1.2 !important;
-    }
-
-    /* 3. Deltes: 🔴 VERMELL per a Positiu / Avantatge */
+    /* --------------------------------------------------------- */
+    /* 3. DELTES EN VERMELL (BO) I BLAU (DOLENT)                 */
+    /* --------------------------------------------------------- */
     div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
         color: #d00000 !important;
         background-color: rgba(208, 0, 0, 0.12) !important;
@@ -128,7 +115,6 @@ st.markdown(
         fill: #d00000 !important;
     }
 
-    /* 4. Deltes: 🔵 BLAU per a Negatiu / Desavantatge */
     div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {
         color: #0077b6 !important;
         background-color: rgba(0, 119, 182, 0.12) !important;
@@ -140,31 +126,68 @@ st.markdown(
     div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg {
         fill: #0077b6 !important;
     }
-    /* Amplada intel·ligent del Sidebar: 360px en PC i adaptable en mòbil */
+
+    /* --------------------------------------------------------- */
+    /* 4. BARRA LATERAL                                          */
+    /* --------------------------------------------------------- */
     [data-testid="stSidebar"] {
         min-width: min(360px, 85vw) !important;
     }
-
-    /* Permetre que el text llarg del partit salti de línia còmodament */
     [data-testid="stSidebar"] div[data-baseweb="select"] div {
         white-space: normal !important;
         line-height: 1.3 !important;
     }
-    /* Ajust adaptatiu perquè el text ON · OFF no es talli mai */
-    div[data-testid="stMetricValue"] {
-        font-size: clamp(1.2rem, 1.7vw, 1.55rem) !important;
-        white-space: normal !important;
-        line-height: 1.25 !important;
-    }
 
-    /* Pastilla neutra per a la quota de participació (sense fletxa enganyosa) */
-    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Off"]) {
-        color: #495057 !important;
-        background-color: #e9ecef !important;
-        border-radius: 6px;
-        padding: 3px 8px;
-        width: fit-content;
-        font-weight: 500;
+    /* --------------------------------------------------------- */
+    /* 5. ADAPTACIÓ MÒBIL AUTOMÀTICA (PANTALLES < 768px)         */
+    /* --------------------------------------------------------- */
+    @media (max-width: 768px) {
+        /* Aprofitar tota l'amplada de la pantalla del telèfon */
+        [data-testid="stMainBlockContainer"],
+        .block-container {
+            padding-left: 0.6rem !important;
+            padding-right: 0.6rem !important;
+            padding-top: 0.8rem !important;
+            padding-bottom: 1.5rem !important;
+        }
+
+        /* Targetes KPI compactes i proporcionades en mòbil */
+        .stMetric {
+            padding: 8px 6px !important;
+            min-height: 85px !important;
+            border-radius: 6px !important;
+        }
+        div[data-testid="stMetricValue"] {
+            font-size: 1.15rem !important;
+        }
+        div[data-testid="stMetricLabel"] {
+            font-size: 0.72rem !important;
+            line-height: 1.1 !important;
+        }
+        div[data-testid="stMetricDelta"] {
+            font-size: 0.68rem !important;
+            padding: 2px 4px !important;
+        }
+
+        /* Títols de pàgina adaptats a la pantalla petita */
+        h1 {
+            font-size: 1.35rem !important;
+        }
+        h2, h3 {
+            font-size: 1.1rem !important;
+        }
+
+        /* Selector de pestanyes amb desplaçament tàctil suau */
+        div[data-testid="stSegmentedControl"] {
+            overflow-x: auto !important;
+            white-space: nowrap !important;
+            padding-bottom: 6px !important;
+        }
+
+        /* Espaiat entre columnes en mòbil */
+        div[data-testid="stHorizontalBlock"] {
+            gap: 0.4rem !important;
+        }
     }
 </style>
 """,
