@@ -1193,33 +1193,7 @@ if view_mode == "Partit Individual":
                         )
                         s_opp_fta = s_opp_ftm
                         
-            s_opp_fta = float(
-                pd.to_numeric(g_line_m["FTA_Agn"], errors="coerce").fillna(0).sum()
-            )
-            s_opp_oreb = float(
-                pd.to_numeric(g_line_m["OREB_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_dreb = float(
-                pd.to_numeric(g_line_m["DREB_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_tov = float(
-                pd.to_numeric(g_line_m["TOV_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-
-            s_opp_paint_pts = (s_opp_rim_m + s_opp_paint_m) * 2.0
-            s_opp_paint_fga = s_opp_rim_a + s_opp_paint_a
-            s_opp_nopaint_pts = (
-                s_opp_mr_m * 2.0 + s_opp_c3_m * 3.0 + s_opp_atb3_m * 3.0
-            )
-            s_opp_nopaint_fga = s_opp_mr_a + s_opp_c3_a + s_opp_atb3_a
-            s_opp_fg_pts = s_opp_paint_pts + s_opp_nopaint_pts
-
+                        
             # 3. CÀLCULS MATEMÀTICS DELS 4 FACTORS (Dean Oliver)
             efg_team = adv_dict_team.get(
                 "1. Effective FG% (eFG%)",
