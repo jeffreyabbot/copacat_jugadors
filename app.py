@@ -923,13 +923,16 @@ if view_mode == "Partit Individual":
 # 1. PESTAÑA: MÈTRIQUES, 4 FACTORS I EFICIÈNCIA (PARTIT INDIVIDUAL)
 # -------------------------------------------------------------
 
+   # -------------------------------------------------------------
+    # 1. PESTAÑA: MÈTRIQUES, 4 FACTORS I EFICIÈNCIA (PARTIT INDIVIDUAL)
+    # -------------------------------------------------------------
     if active_tab == "📈 Mètriques i 4 Factors":
         g_adv = adv_df[adv_df["game_id"] == str(selected_game_id)].copy()
 
         if not g_adv.empty:
             g_box_m = box_df[
                 box_df["game_id"] == str(selected_game_id)
-            ].drop_duplicates(subset=["Player"])
+            ].drop_duplicates(subset=["Player", "Name"])
             g_line_m = lineups_df[
                 lineups_df["game_id"] == str(selected_game_id)
             ].drop_duplicates(subset=["Lineup"])
@@ -973,10 +976,19 @@ if view_mode == "Partit Individual":
                 pd.to_numeric(g_box_m["ATB3(A)"], errors="coerce").fillna(0).sum()
             )
 
-            s_team_2pm = s_team_rim_m + s_team_paint_m + s_team_mr_m
-            s_team_2pa = s_team_rim_a + s_team_paint_a + s_team_mr_a
-            s_team_3pm = s_team_c3_m + s_team_atb3_m
-            s_team_3pa = s_team_c3_a + s_team_atb3_a
+            # Tirs directes de 2PA i 3PA
+            s_team_2pm = float(
+                pd.to_numeric(g_box_m["2PM"], errors="coerce").fillna(0).sum()
+            )
+            s_team_2pa = float(
+                pd.to_numeric(g_box_m["2PA"], errors="coerce").fillna(0).sum()
+            )
+            s_team_3pm = float(
+                pd.to_numeric(g_box_m["3PM"], errors="coerce").fillna(0).sum()
+            )
+            s_team_3pa = float(
+                pd.to_numeric(g_box_m["3PA"], errors="coerce").fillna(0).sum()
+            )
             s_team_fgm = s_team_2pm + s_team_3pm
             s_team_fga = s_team_2pa + s_team_3pa
 
@@ -1000,14 +1012,13 @@ if view_mode == "Partit Individual":
 
             s_team_paint_pts = (s_team_rim_m + s_team_paint_m) * 2.0
             s_team_paint_fga = s_team_rim_a + s_team_paint_a
-
             s_team_nopaint_pts = (
                 s_team_mr_m * 2.0 + s_team_c3_m * 3.0 + s_team_atb3_m * 3.0
             )
             s_team_nopaint_fga = s_team_mr_a + s_team_c3_a + s_team_atb3_a
             s_team_fg_pts = s_team_paint_pts + s_team_nopaint_pts
 
-            # Marcador oficial
+            # Marcador oficial d'Argentona i Rival
             score_row = g_adv[
                 g_adv["Metric"]
                 .astype(str)
@@ -1024,7 +1035,7 @@ if view_mode == "Partit Individual":
                     .sum()
                 )
 
-            # 2. SUMATORIS REALS DEL RIVAL
+            # 2. SUMATORIS REALS DEL RIVAL (INICIALITZACIÓ DES DE QUINTETS)
             s_opp_rim_m = float(
                 pd.to_numeric(g_line_m["Rim_FGM_Agn"], errors="coerce")
                 .fillna(0)
@@ -1082,23 +1093,96 @@ if view_mode == "Partit Individual":
             s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
             s_opp_fgm = s_opp_2pm + s_opp_3pm
             s_opp_fga = s_opp_2pa + s_opp_3pa
-            # ❌ SELECCIONA I ESBORRA TOT AIXÒ:
-            # 🛡️ AUTO-RECUPERACIÓ: Si a quintets el rival surt a 0 tirs, els traiem del Play-by-Play
-            if s_opp_fga == 0.0 and not pbp_df.empty:
-                p_match = pbp_df[pbp_df["game_id"].astype(str) == str(selected_game_id)]
-                if not p_match.empty:
-                    opp_shots = p_match[p_match["Action"].astype(str).str.contains("Opponent.*Shot", case=False, regex=True)]
 
-                    s_opp_rim_m = float((opp_shots["Action"].str.contains("RIM", case=False) & (opp_shots["Result"].str.lower() == "make")).sum())
-                    s_opp_rim_a = float(opp_shots["Action"].str.contains("RIM", case=False).sum())
-                    s_opp_paint_m = float((opp_shots["Action"].str.contains("PAINT", case=False) & (opp_shots["Result"].str.lower() == "make")).sum())
-                    s_opp_paint_a = float(opp_shots["Action"].str.contains("PAINT", case=False).sum())
-                    s_opp_mr_m = float((opp_shots["Action"].str.contains("MR", case=False) & (opp_shots["Result"].str.lower() == "make")).sum())
-                    s_opp_mr_a = float(opp_shots["Action"].str.contains("MR", case=False).sum())
-                    s_opp_c3_m = float((opp_shots["Action"].str.contains("C3", case=False) & (opp_shots["Result"].str.lower() == "make")).sum())
-                    s_opp_c3_a = float(opp_shots["Action"].str.contains("C3", case=False).sum())
-                    s_opp_atb3_m = float((opp_shots["Action"].str.contains("ATB3", case=False) & (opp_shots["Result"].str.lower() == "make")).sum())
-                    s_opp_atb3_a = float(opp_shots["Action"].str.contains("ATB3", case=False).sum())
+            s_opp_ftm = float(
+                pd.to_numeric(g_line_m["FTM_Agn"], errors="coerce").fillna(0).sum()
+            )
+            s_opp_fta = float(
+                pd.to_numeric(g_line_m["FTA_Agn"], errors="coerce").fillna(0).sum()
+            )
+            s_opp_oreb = float(
+                pd.to_numeric(g_line_m["OREB_Agn"], errors="coerce")
+                .fillna(0)
+                .sum()
+            )
+            s_opp_dreb = float(
+                pd.to_numeric(g_line_m["DREB_Agn"], errors="coerce")
+                .fillna(0)
+                .sum()
+            )
+            s_opp_tov = float(
+                pd.to_numeric(g_line_m["TOV_Agn"], errors="coerce")
+                .fillna(0)
+                .sum()
+            )
+
+            # 🛡️ AUTO-RECUPERACIÓ DEL RIVAL DES DEL PLAY-BY-PLAY (SI CAL)
+            if s_opp_fga == 0.0 and not pbp_df.empty:
+                p_match = pbp_df[
+                    pbp_df["game_id"].astype(str) == str(selected_game_id)
+                ]
+                if not p_match.empty:
+                    opp_shots = p_match[
+                        p_match["Action"]
+                        .astype(str)
+                        .str.contains("Opponent.*Shot", case=False, regex=True)
+                    ]
+
+                    s_opp_rim_m = float(
+                        (
+                            opp_shots["Action"].str.contains("RIM", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_rim_a = float(
+                        opp_shots["Action"]
+                        .str.contains("RIM", case=False)
+                        .sum()
+                    )
+                    s_opp_paint_m = float(
+                        (
+                            opp_shots["Action"].str.contains(
+                                "PAINT", case=False
+                            )
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_paint_a = float(
+                        opp_shots["Action"]
+                        .str.contains("PAINT", case=False)
+                        .sum()
+                    )
+                    s_opp_mr_m = float(
+                        (
+                            opp_shots["Action"].str.contains("MR", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_mr_a = float(
+                        opp_shots["Action"].str.contains("MR", case=False).sum()
+                    )
+                    s_opp_c3_m = float(
+                        (
+                            opp_shots["Action"].str.contains("C3", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_c3_a = float(
+                        opp_shots["Action"].str.contains("C3", case=False).sum()
+                    )
+                    s_opp_atb3_m = float(
+                        (
+                            opp_shots["Action"].str.contains(
+                                "ATB3", case=False
+                            )
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_atb3_a = float(
+                        opp_shots["Action"]
+                        .str.contains("ATB3", case=False)
+                        .sum()
+                    )
 
                     s_opp_2pm = s_opp_rim_m + s_opp_paint_m + s_opp_mr_m
                     s_opp_2pa = s_opp_rim_a + s_opp_paint_a + s_opp_mr_a
@@ -1107,48 +1191,74 @@ if view_mode == "Partit Individual":
                     s_opp_fgm = s_opp_2pm + s_opp_3pm
                     s_opp_fga = s_opp_2pa + s_opp_3pa
 
-                    s_opp_ftm = float((p_match["Action"].astype(str).str.contains("Opponent FT Score", case=False)).sum())
-                    s_opp_ft_miss = float((p_match["Action"].astype(str).str.contains("Opponent FT Miss", case=False)).sum())
-                    s_opp_fta = s_opp_ftm + s_opp_ft_miss
-                    
-            # 3. CÀLCULS MATEMÀTICS DELS 4 FACTORS (Dean Oliver)
-            efg_team = adv_dict_team.get(
-                "1. Effective FG% (eFG%)",
+            # Auto-recuperació independent de tirs lliures del rival
+            if s_opp_fta == 0.0 and not pbp_df.empty:
+                p_match = pbp_df[
+                    pbp_df["game_id"].astype(str) == str(selected_game_id)
+                ]
+                if not p_match.empty:
+                    opp_ft_m = float(
+                        (
+                            p_match["Action"]
+                            .astype(str)
+                            .str.contains("Opponent FT Score", case=False)
+                        ).sum()
+                    )
+                    opp_ft_miss = float(
+                        (
+                            p_match["Action"]
+                            .astype(str)
+                            .str.contains("Opponent FT Miss", case=False)
+                        ).sum()
+                    )
+                    if (opp_ft_m + opp_ft_miss) > 0:
+                        s_opp_ftm = opp_ft_m
+                        s_opp_fta = opp_ft_m + opp_ft_miss
+                    elif s_opp_pts > (s_opp_2pm * 2 + s_opp_3pm * 3):
+                        s_opp_ftm = float(
+                            s_opp_pts - (s_opp_2pm * 2 + s_opp_3pm * 3)
+                        )
+                        s_opp_fta = s_opp_ftm
+
+            # Punts per zones del rival
+            s_opp_paint_pts = (s_opp_rim_m + s_opp_paint_m) * 2.0
+            s_opp_paint_fga = s_opp_rim_a + s_opp_paint_a
+            s_opp_nopaint_pts = (
+                s_opp_mr_m * 2.0 + s_opp_c3_m * 3.0 + s_opp_atb3_m * 3.0
+            )
+            s_opp_nopaint_fga = s_opp_mr_a + s_opp_c3_a + s_opp_atb3_a
+            s_opp_fg_pts = s_opp_paint_pts + s_opp_nopaint_pts
+
+            # 3. 4 FACTORS DE DEAN OLIVER
+            efg_team = (
                 ((s_team_fgm + 0.5 * s_team_3pm) / s_team_fga * 100)
                 if s_team_fga > 0
-                else 0.0,
+                else 0.0
             )
-            efg_opp = adv_dict_opp.get(
-                "1. Effective FG% (eFG%)",
+            efg_opp = (
                 ((s_opp_fgm + 0.5 * s_opp_3pm) / s_opp_fga * 100)
                 if s_opp_fga > 0
-                else 0.0,
+                else 0.0
             )
 
-            tov_team = adv_dict_team.get(
-                "2. Turnover Rate (TO%)",
-                (s_team_tov / (s_team_fga + 0.44 * s_team_fta + s_team_tov) * 100)
-                if (s_team_fga + 0.44 * s_team_fta + s_team_tov) > 0
-                else 0.0,
+            s_team_plays = s_team_fga + 0.44 * s_team_fta + s_team_tov
+            s_opp_plays = s_opp_fga + 0.44 * s_opp_fta + s_opp_tov
+            tov_team = (
+                (s_team_tov / s_team_plays * 100) if s_team_plays > 0 else 0.0
             )
-            tov_opp = adv_dict_opp.get(
-                "2. Turnover Rate (TO%)",
-                (s_opp_tov / (s_opp_fga + 0.44 * s_opp_fta + s_opp_tov) * 100)
-                if (s_opp_fga + 0.44 * s_opp_fta + s_opp_tov) > 0
-                else 0.0,
+            tov_opp = (
+                (s_opp_tov / s_opp_plays * 100) if s_opp_plays > 0 else 0.0
             )
 
-            oreb_team = adv_dict_team.get(
-                "3. Offensive Rebound% (OREB%)",
+            oreb_team = (
                 (s_team_oreb / (s_team_oreb + s_opp_dreb) * 100)
                 if (s_team_oreb + s_opp_dreb) > 0
-                else 0.0,
+                else 0.0
             )
-            oreb_opp = adv_dict_opp.get(
-                "3. Offensive Rebound% (OREB%)",
+            oreb_opp = (
                 (s_opp_oreb / (s_opp_oreb + s_team_dreb) * 100)
                 if (s_opp_oreb + s_team_dreb) > 0
-                else 0.0,
+                else 0.0
             )
 
             ft_rate_team = (
@@ -1156,7 +1266,7 @@ if view_mode == "Partit Individual":
             )
             ft_rate_opp = (s_opp_ftm / s_opp_fga) if s_opp_fga > 0 else 0.0
 
-            # 4. TARGETES KPI SUPERIORS (ELS 4 FACTORS)
+            # 4. TARGETES KPI SUPERIORS (4 FACTORS)
             kpi1, kpi2, kpi3, kpi4 = st.columns(4)
             kpi1.metric(
                 "1. Tir Efectiu (eFG%)",
@@ -1180,103 +1290,7 @@ if view_mode == "Partit Individual":
             )
 
             st.markdown("---")
-            # 4.1 VOLUMS DE LLANÇAMENT DEL PARTIT
-            st.subheader("📦 Volums de Llançament del Partit")
-            col_v1, col_v2 = st.columns(2)
 
-            with col_v1:
-                s_pct_2p = (s_team_2pm / s_team_2pa * 100) if s_team_2pa > 0 else 0.0
-                s_pct_3p = (s_team_3pm / s_team_3pa * 100) if s_team_3pa > 0 else 0.0
-                s_pct_ft = (s_team_ftm / s_team_fta * 100) if s_team_fta > 0 else 0.0
-                s_pct_fg = (s_team_fgm / s_team_fga * 100) if s_team_fga > 0 else 0.0
-                s_pct_3par = (s_team_3pa / s_team_fga * 100) if s_team_fga > 0 else 0.0
-
-                df_vol_team_single = pd.DataFrame(
-                    [
-                        {
-                            "Concepte": "Tirs de Camp Totals (TC)",
-                            "Encertats / Intentats": f"{int(s_team_fgm)} / {int(s_team_fga)}",
-                            "Percentatge": f"{s_pct_fg:.1f}%",
-                            "Punts Aportats": f"{int(s_team_2pm*2 + s_team_3pm*3)} pts",
-                        },
-                        {
-                            "Concepte": "Tirs de 2 Punts (T2)",
-                            "Encertats / Intentats": f"{int(s_team_2pm)} / {int(s_team_2pa)}",
-                            "Percentatge": f"{s_pct_2p:.1f}%",
-                            "Punts Aportats": f"{int(s_team_2pm*2)} pts",
-                        },
-                        {
-                            "Concepte": "Triples (T3)",
-                            "Encertats / Intentats": f"{int(s_team_3pm)} / {int(s_team_3pa)}",
-                            "Percentatge": f"{s_pct_3p:.1f}%",
-                            "Punts Aportats": f"{int(s_team_3pm*3)} pts",
-                        },
-                        {
-                            "Concepte": "Tirs Lliures (TL)",
-                            "Encertats / Intentats": f"{int(s_team_ftm)} / {int(s_team_fta)}",
-                            "Percentatge": f"{s_pct_ft:.1f}%",
-                            "Punts Aportats": f"{int(s_team_ftm)} pts",
-                        },
-                        {
-                            "Concepte": "Ràtio de Triples (3PAr)",
-                            "Encertats / Intentats": f"{int(s_team_3pa)} / {int(s_team_fga)}",
-                            "Percentatge": f"{s_pct_3par:.1f}%",
-                            "Punts Aportats": f"{s_pct_3par:.1f}% dels TC",
-                        },
-                    ]
-                )
-                st.markdown("##### 🔴 Volums Argentona")
-                st.dataframe(
-                    df_vol_team_single, use_container_width=True, hide_index=True
-                )
-
-            with col_v2:
-                s_opp_pct_2p = (s_opp_2pm / s_opp_2pa * 100) if s_opp_2pa > 0 else 0.0
-                s_opp_pct_3p = (s_opp_3pm / s_opp_3pa * 100) if s_opp_3pa > 0 else 0.0
-                s_opp_pct_ft = (s_opp_ftm / s_opp_fta * 100) if s_opp_fta > 0 else 0.0
-                s_opp_pct_fg = (s_opp_fgm / s_opp_fga * 100) if s_opp_fga > 0 else 0.0
-                s_opp_pct_3par = (s_opp_3pa / s_opp_fga * 100) if s_opp_fga > 0 else 0.0
-
-                df_vol_opp_single = pd.DataFrame(
-                    [
-                        {
-                            "Concepte": "Tirs de Camp Totals (TC)",
-                            "Encertats / Intentats": f"{int(s_opp_fgm)} / {int(s_opp_fga)}",
-                            "Percentatge": f"{s_opp_pct_fg:.1f}%",
-                            "Punts Aportats": f"{int(s_opp_2pm*2 + s_opp_3pm*3)} pts",
-                        },
-                        {
-                            "Concepte": "Tirs de 2 Punts (T2)",
-                            "Encertats / Intentats": f"{int(s_opp_2pm)} / {int(s_opp_2pa)}",
-                            "Percentatge": f"{s_opp_pct_2p:.1f}%",
-                            "Punts Aportats": f"{int(s_opp_2pm*2)} pts",
-                        },
-                        {
-                            "Concepte": "Triples (T3)",
-                            "Encertats / Intentats": f"{int(s_opp_3pm)} / {int(s_opp_3pa)}",
-                            "Percentatge": f"{s_opp_pct_3p:.1f}%",
-                            "Punts Aportats": f"{int(s_opp_3pm*3)} pts",
-                        },
-                        {
-                            "Concepte": "Tirs Lliures (TL)",
-                            "Encertats / Intentats": f"{int(s_opp_ftm)} / {int(s_opp_fta)}",
-                            "Percentatge": f"{s_opp_pct_ft:.1f}%",
-                            "Punts Aportats": f"{int(s_opp_ftm)} pts",
-                        },
-                        {
-                            "Concepte": "Ràtio de Triples (3PAr)",
-                            "Encertats / Intentats": f"{int(s_opp_3pa)} / {int(s_opp_fga)}",
-                            "Percentatge": f"{s_opp_pct_3par:.1f}%",
-                            "Punts Aportats": f"{s_opp_pct_3par:.1f}% dels TC",
-                        },
-                    ]
-                )
-                st.markdown("##### 🛡️ Volums Rival")
-                st.dataframe(
-                    df_vol_opp_single, use_container_width=True, hide_index=True
-                )
-
-            st.markdown("---")
             # 5. TAULA UNIFICADA DELS 4 FACTORS
             win_efg = efg_team > efg_opp
             win_tov = tov_team < tov_opp
@@ -1338,7 +1352,6 @@ if view_mode == "Partit Individual":
             st.markdown("---")
 
             # 6. NOVES TARGETES: RITME, OER I DER
-            # Possessions reals de partit amb protecció si falta el rival
             raw_t_poss = float(
                 s_team_fga + 0.44 * s_team_fta - s_team_oreb + s_team_tov
             )
@@ -1346,7 +1359,6 @@ if view_mode == "Partit Individual":
                 s_opp_fga + 0.44 * s_opp_fta - s_opp_oreb + s_opp_tov
             )
 
-            # Si tenim dades dels dos equips fem la mitjana; si el rival no té dades, usem les nostres
             if raw_t_poss >= 15.0 and raw_o_poss >= 15.0:
                 match_poss = 0.5 * (raw_t_poss + raw_o_poss)
             elif raw_t_poss >= 15.0:
@@ -1356,16 +1368,13 @@ if view_mode == "Partit Individual":
             else:
                 match_poss = 80.0
 
-            # Minuts reals de l'equip al partit
             match_team_min = g_box_m["MIN"].apply(parse_min_to_float).sum()
+            match_pace = (
+                (match_poss / match_team_min) * 200.0
+                if match_team_min >= 100.0
+                else match_poss
+            )
 
-            # Si el partit és de 40 minuts regulars (sense pròrroga), el Ritme és exactament igual a les possessions
-            if 190.0 <= match_team_min <= 210.0:
-                match_pace = match_poss
-            elif match_team_min > 210.0:
-                match_pace = (match_poss / match_team_min) * 200.0
-            else:
-                match_pace = match_poss
             match_oer = (
                 (s_team_pts / match_poss) * 100.0 if match_poss > 0 else 0.0
             )
@@ -1394,12 +1403,11 @@ if view_mode == "Partit Individual":
 
             st.markdown("---")
 
-            # 7. TAULA DE DESGLOSSAMENT D'EFICIÈNCIA (14 FILES FIXES I HOMOGÈNIES)
+            # 7. TAULA DE DESGLOSSAMENT D'EFICIÈNCIA (14 FILES FIXES)
             st.subheader("📊 Desglossament d'Eficiència de Tir i Joc")
             col_table, _ = st.columns([3, 1])
 
             with col_table:
-                # 1. Càlculs de PPS en joc
                 pps_team_real = (
                     (s_team_fg_pts / s_team_fga) if s_team_fga > 0 else 0.0
                 )
@@ -1429,7 +1437,6 @@ if view_mode == "Partit Individual":
                     else 0.0
                 )
 
-                # Funció auxiliar per cercar a adv_dict de forma flexible
                 def get_m_val(adv_d, terms, default_val=0.0):
                     for k, v in adv_d.items():
                         k_low = k.lower()
@@ -1440,20 +1447,39 @@ if view_mode == "Partit Individual":
                                 pass
                     return default_val
 
-                # 2. Extracció creuada de les mètriques complementàries
-                fb_pps_t = get_m_val(
-                    adv_dict_team, ["fastbreak pps", "transició pps"], 0.0
-                )
-                fb_pps_o = get_m_val(
-                    adv_dict_opp, ["fastbreak pps", "transició pps"], 0.0
+                pbp_stats_match = compute_pbp_advanced_stats(
+                    pbp_df, selected_game_id
                 )
 
+                fb_pps_t = get_m_val(
+                    adv_dict_team,
+                    ["fastbreak pps", "transició pps"],
+                    pbp_stats_match.get("fb_pps_t", 0.0),
+                )
+                if fb_pps_t == 0.0:
+                    fb_pps_t = pbp_stats_match.get("fb_pps_t", 0.0)
+                fb_pps_o = get_m_val(
+                    adv_dict_opp,
+                    ["fastbreak pps", "transició pps"],
+                    pbp_stats_match.get("fb_pps_o", 0.0),
+                )
+                if fb_pps_o == 0.0:
+                    fb_pps_o = pbp_stats_match.get("fb_pps_o", 0.0)
+
                 half_pps_t = get_m_val(
-                    adv_dict_team, ["half-court pps", "estàtic", "estatic"], 0.0
+                    adv_dict_team,
+                    ["half-court pps", "estàtic", "estatic"],
+                    pbp_stats_match.get("hc_pps_t", 0.0),
                 )
+                if half_pps_t == 0.0:
+                    half_pps_t = pbp_stats_match.get("hc_pps_t", 0.0)
                 half_pps_o = get_m_val(
-                    adv_dict_opp, ["half-court pps", "estàtic", "estatic"], 0.0
+                    adv_dict_opp,
+                    ["half-court pps", "estàtic", "estatic"],
+                    pbp_stats_match.get("hc_pps_o", 0.0),
                 )
+                if half_pps_o == 0.0:
+                    half_pps_o = pbp_stats_match.get("hc_pps_o", 0.0)
 
                 paint_touches_t = get_m_val(
                     adv_dict_team,
@@ -1469,39 +1495,47 @@ if view_mode == "Partit Individual":
                 pts_off_to_t = get_m_val(
                     adv_dict_team,
                     ["points off live to", "pts off to", "points off"],
-                    0.0,
+                    pbp_stats_match.get("pts_off_to_t", 0.0),
                 )
+                if pts_off_to_t == 0.0:
+                    pts_off_to_t = pbp_stats_match.get("pts_off_to_t", 0.0)
                 pts_off_to_o = get_m_val(
                     adv_dict_opp,
                     ["points off live to", "pts off to", "points off"],
-                    0.0,
+                    pbp_stats_match.get("pts_off_to_o", 0.0),
                 )
+                if pts_off_to_o == 0.0:
+                    pts_off_to_o = pbp_stats_match.get("pts_off_to_o", 0.0)
 
                 lto_t = get_m_val(
                     adv_dict_team,
                     ["live turnovers", "lto"],
-                    float(
-                        pd.to_numeric(g_box_m.get("LTO", 0), errors="coerce")
-                        .fillna(0)
-                        .sum()
-                    ),
+                    pbp_stats_match.get("lto_t", 0.0),
                 )
+                if lto_t == 0.0:
+                    lto_t = pbp_stats_match.get("lto_t", 0.0)
                 lto_o = get_m_val(
-                    adv_dict_opp, ["live turnovers", "lto"], 0.0
+                    adv_dict_opp,
+                    ["live turnovers", "lto"],
+                    pbp_stats_match.get("lto_o", 0.0),
                 )
+                if lto_o == 0.0:
+                    lto_o = pbp_stats_match.get("lto_o", 0.0)
 
                 dto_t = get_m_val(
                     adv_dict_team,
                     ["dead turnovers", "dto"],
-                    float(
-                        pd.to_numeric(g_box_m.get("DTO", 0), errors="coerce")
-                        .fillna(0)
-                        .sum()
-                    ),
+                    pbp_stats_match.get("dto_t", 0.0),
                 )
+                if dto_t == 0.0:
+                    dto_t = pbp_stats_match.get("dto_t", 0.0)
                 dto_o = get_m_val(
-                    adv_dict_opp, ["dead turnovers", "dto"], 0.0
+                    adv_dict_opp,
+                    ["dead turnovers", "dto"],
+                    pbp_stats_match.get("dto_o", 0.0),
                 )
+                if dto_o == 0.0:
+                    dto_o = pbp_stats_match.get("dto_o", 0.0)
 
                 fb_tot_t = get_m_val(
                     adv_dict_team,
@@ -1565,8 +1599,8 @@ if view_mode == "Partit Individual":
                 stocks_o = get_m_val(
                     adv_dict_opp, ["stocks", "steals + blocks"], 0.0
                 )
-                pbp_stats_m = compute_pbp_advanced_stats(pbp_df, selected_game_id)
-                # 3. LES 14 FILES EXACTES I EN ORDRE FIX
+
+                # 3. LES 14 FILES EXACTES
                 table_rows_single = [
                     (
                         "Marcador del Partit",
@@ -1606,61 +1640,56 @@ if view_mode == "Partit Individual":
                     ),
                     (
                         "PPS en Transició (Contraatac)",
-                        f"{pbp_stats_m.get('fb_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_m.get('fb_pps_o', 0.0):.2f}",
-                        pbp_stats_m.get("fb_pps_t", 0.0),
-                        pbp_stats_m.get("fb_pps_o", 0.0),
-                        abs(
-                            pbp_stats_m.get("fb_pps_t", 0.0)
-                            - pbp_stats_m.get("fb_pps_o", 0.0)
-                        )
-                        >= 0.15,
+                        f"{fb_pps_t:.2f}",
+                        f"{fb_pps_o:.2f}",
+                        fb_pps_t,
+                        fb_pps_o,
+                        abs(fb_pps_t - fb_pps_o) >= 0.15,
                         False,
                     ),
                     (
                         "PPS en Atac Estàtic (5c5)",
-                        f"{pbp_stats_m.get('hc_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_m.get('hc_pps_o', 0.0):.2f}",
-                        pbp_stats_m.get("hc_pps_t", 0.0),
-                        pbp_stats_m.get("hc_pps_o", 0.0),
-                        abs(
-                            pbp_stats_m.get("hc_pps_t", 0.0)
-                            - pbp_stats_m.get("hc_pps_o", 0.0)
-                        )
-                        >= 0.15,
+                        f"{half_pps_t:.2f}",
+                        f"{half_pps_o:.2f}",
+                        half_pps_t,
+                        half_pps_o,
+                        abs(half_pps_t - half_pps_o) >= 0.15,
+                        False,
+                    ),
+                    (
+                        "Tocs a Pintura Totals",
+                        f"{int(paint_touches_t)}",
+                        f"{int(paint_touches_o)}",
+                        paint_touches_t,
+                        paint_touches_o,
+                        abs(paint_touches_t - paint_touches_o) >= 4,
                         False,
                     ),
                     (
                         "Punts de Pèrdua Viva (PTS OFF TO)",
-                        f"{int(pbp_stats_m.get('pts_off_to_t', 0))}",
-                        f"{int(pbp_stats_m.get('pts_off_to_o', 0))}",
-                        pbp_stats_m.get("pts_off_to_t", 0.0),
-                        pbp_stats_m.get("pts_off_to_o", 0.0),
-                        abs(
-                            pbp_stats_m.get("pts_off_to_t", 0.0)
-                            - pbp_stats_m.get("pts_off_to_o", 0.0)
-                        )
-                        >= 3,
+                        f"{int(pts_off_to_t)}",
+                        f"{int(pts_off_to_o)}",
+                        pts_off_to_t,
+                        pts_off_to_o,
+                        abs(pts_off_to_t - pts_off_to_o) >= 3,
                         False,
                     ),
                     (
                         "Pèrdues Vives (LTO)",
-                        f"{int(pbp_stats_m.get('lto_t', 0))}",
-                        f"{int(pbp_stats_m.get('lto_o', 0))}",
-                        pbp_stats_m.get("lto_t", 0.0),
-                        pbp_stats_m.get("lto_o", 0.0),
-                        abs(pbp_stats_m.get("lto_t", 0.0) - pbp_stats_m.get("lto_o", 0.0))
-                        >= 2,
+                        f"{int(lto_t)}",
+                        f"{int(lto_o)}",
+                        lto_t,
+                        lto_o,
+                        abs(lto_t - lto_o) >= 2,
                         True,
                     ),
                     (
                         "Pèrdues Mortes (DTO)",
-                        f"{int(pbp_stats_m.get('dto_t', 0))}",
-                        f"{int(pbp_stats_m.get('dto_o', 0))}",
-                        pbp_stats_m.get("dto_t", 0.0),
-                        pbp_stats_m.get("dto_o", 0.0),
-                        abs(pbp_stats_m.get("dto_t", 0.0) - pbp_stats_m.get("dto_o", 0.0))
-                        >= 2,
+                        f"{int(dto_t)}",
+                        f"{int(dto_o)}",
+                        dto_t,
+                        dto_o,
+                        abs(dto_t - dto_o) >= 2,
                         True,
                     ),
                     (
