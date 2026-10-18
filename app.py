@@ -2052,7 +2052,6 @@ else:
     valid_ids = filtered_games["game_id"].astype(str).tolist()
     num_partits = len(valid_ids)
 
-    # Etiqueta dinàmica de filtres actius
     active_filters = [selected_comp]
     if selected_pista != "Tots":
         active_filters.append(f"Pista: {selected_pista}")
@@ -2064,7 +2063,6 @@ else:
     st.title(f"🏆 Totals Acumulats ({num_partits} partits)")
     st.caption(f"📌 **Filtres actius:** {' • '.join(active_filters)}")
 
-    # Dades acumulades de tots els partits seleccionats
     comp_box = box_df[box_df["game_id"].astype(str).isin(valid_ids)].copy()
     comp_lineups = (
         lineups_df[lineups_df["game_id"].astype(str).isin(valid_ids)].copy()
@@ -2086,692 +2084,217 @@ else:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # -------------------------------------------------------------
-    # 1. PESTAÑA: MÈTRIQUES, 4 FACTORS I EFICIÈNCIA (ACUMULATS)
-    # -------------------------------------------------------------
+    def safe_col_sum(df, col):
+        if col in df.columns:
+            return float(pd.to_numeric(df[col], errors="coerce").fillna(0).sum())
+        return 0.0
+
     if active_tab_season == "📈 Mètriques i 4 Factors":
         if not comp_lineups.empty or not comp_box.empty:
-
-            def safe_col_sum(df, col):
-                if col in df.columns:
-                    return float(
-                        pd.to_numeric(df[col], errors="coerce").fillna(0).sum()
-                    )
-                return 0.0
-
-            # 1. SUMATORIS REALS D'ARGENTONA
-            team_rim_m = int(safe_col_sum(comp_box, "RIM(M)"))
-            team_rim_a = int(safe_col_sum(comp_box, "RIM(A)"))
-            team_paint_m = int(safe_col_sum(comp_box, "PAINT(M)"))
-            team_paint_a = int(safe_col_sum(comp_box, "PAINT(A)"))
-            team_mr_m = int(safe_col_sum(comp_box, "MR(M)"))
-            team_mr_a = int(safe_col_sum(comp_box, "MR(A)"))
-            team_c3_m = int(safe_col_sum(comp_box, "C3(M)"))
-            team_c3_a = int(safe_col_sum(comp_box, "C3(A)"))
-            team_atb3_m = int(safe_col_sum(comp_box, "ATB3(M)"))
-            team_atb3_a = int(safe_col_sum(comp_box, "ATB3(A)"))
-
-            team_2pm = team_rim_m + team_paint_m + team_mr_m
-            team_2pa = team_rim_a + team_paint_a + team_mr_a
-            team_3pm = team_c3_m + team_atb3_m
-            team_3pa = team_c3_a + team_atb3_a
-            team_fgm = team_2pm + team_3pm
-            team_fga = team_2pa + team_3pa
-
-            team_ftm = int(safe_col_sum(comp_box, "FTM"))
-            team_fta = int(safe_col_sum(comp_box, "FTA"))
-            team_oreb = int(safe_col_sum(comp_box, "Off Reb"))
-            team_dreb = int(safe_col_sum(comp_box, "Def Reb"))
-            team_tov = int(safe_col_sum(comp_box, "Turnovers"))
-            team_ast = int(safe_col_sum(comp_box, "Assists"))
-
-            team_paint_pts = (team_rim_m + team_paint_m) * 2
-            team_paint_fga = team_rim_a + team_paint_a
-            team_nopaint_pts = team_mr_m * 2 + team_c3_m * 3 + team_atb3_m * 3
-            team_nopaint_fga = team_mr_a + team_c3_a + team_atb3_a
-            team_fg_pts = team_paint_pts + team_nopaint_pts
-            team_pts = team_fg_pts + team_ftm
-
-            # 2. SUMATORIS REALS DELS RIVALS
-            opp_rim_m = int(safe_col_sum(comp_lineups, "Rim_FGM_Agn"))
-            opp_rim_a = int(safe_col_sum(comp_lineups, "Rim_FGA_Agn"))
-            opp_paint_m = int(safe_col_sum(comp_lineups, "Paint_FGM_Agn"))
-            opp_paint_a = int(safe_col_sum(comp_lineups, "Paint_FGA_Agn"))
-            opp_mr_m = int(safe_col_sum(comp_lineups, "MR_FGM_Agn"))
-            opp_mr_a = int(safe_col_sum(comp_lineups, "MR_FGA_Agn"))
-            opp_c3_m = int(safe_col_sum(comp_lineups, "Cor3_FGM_Agn"))
-            opp_c3_a = int(safe_col_sum(comp_lineups, "Cor3_FGA_Agn"))
-            opp_atb3_m = int(safe_col_sum(comp_lineups, "ATB3_FGM_Agn"))
-            opp_atb3_a = int(safe_col_sum(comp_lineups, "ATB3_FGA_Agn"))
-
-            opp_2pm = opp_rim_m + opp_paint_m + opp_mr_m
-            opp_2pa = opp_rim_a + opp_paint_a + opp_mr_a
-            opp_3pm = opp_c3_m + opp_atb3_m
-            opp_3pa = opp_c3_a + opp_atb3_a
-            opp_fgm = opp_2pm + opp_3pm
-            opp_fga = opp_2pa + opp_3pa
-
-            opp_ftm = int(safe_col_sum(comp_lineups, "FTM_Agn"))
-            opp_fta = int(safe_col_sum(comp_lineups, "FTA_Agn"))
-            opp_oreb = int(safe_col_sum(comp_lineups, "OREB_Agn"))
-            opp_dreb = int(safe_col_sum(comp_lineups, "DREB_Agn"))
-            opp_tov = int(safe_col_sum(comp_lineups, "TOV_Agn"))
-
-            opp_paint_pts = (opp_rim_m + opp_paint_m) * 2
-            opp_paint_fga = opp_rim_a + opp_paint_a
-            opp_nopaint_pts = opp_mr_m * 2 + opp_c3_m * 3 + opp_atb3_m * 3
-            opp_nopaint_fga = opp_mr_a + opp_c3_a + opp_atb3_a
-            opp_fg_pts = opp_paint_pts + opp_nopaint_pts
-            opp_pts = opp_fg_pts + opp_ftm
-
-            # 3. 4 FACTORS PONDERATS
-            efg_team = (
-                ((team_fgm + 0.5 * team_3pm) / team_fga * 100)
-                if team_fga > 0
-                else 0.0
-            )
-            efg_opp = (
-                ((opp_fgm + 0.5 * opp_3pm) / opp_fga * 100)
-                if opp_fga > 0
-                else 0.0
-            )
-
-            team_plays = float(team_fga + 0.44 * team_fta + team_tov)
-            opp_plays = float(opp_fga + 0.44 * opp_fta + opp_tov)
-            tov_team = (
-                (team_tov / team_plays * 100) if team_plays > 0 else 0.0
-            )
-            tov_opp = (opp_tov / opp_plays * 100) if opp_plays > 0 else 0.0
-
-            oreb_team = (
-                (team_oreb / (team_oreb + opp_dreb) * 100)
-                if (team_oreb + opp_dreb) > 0
-                else 0.0
-            )
-            oreb_opp = (
-                (opp_oreb / (opp_oreb + team_dreb) * 100)
-                if (opp_oreb + team_dreb) > 0
-                else 0.0
-            )
-
-            ft_rate_team = (team_ftm / team_fga) if team_fga > 0 else 0.0
-            ft_rate_opp = (opp_ftm / opp_fga) if opp_fga > 0 else 0.0
-
-            # 4. TARGETES KPI SUPERIORS (4 FACTORS)
-            kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-            kpi1.metric(
-                "1. Tir Efectiu (eFG%)",
-                f"{efg_team:.1f}%",
-                delta=f"{efg_team - efg_opp:+.1f}% vs Rivals",
-            )
-            kpi2.metric(
-                "2. Control Pèrdues (TOV%)",
-                f"{tov_team:.1f}%",
-                delta=f"{tov_opp - tov_team:+.1f}% marge",
-            )
-            kpi3.metric(
-                "3. Rebot Ofensiu (OREB%)",
-                f"{oreb_team:.1f}%",
-                delta=f"{oreb_team - oreb_opp:+.1f}% vs Rivals",
-            )
-            kpi4.metric(
-                "4. Freqüència TL (FT Rate)",
-                f"{ft_rate_team:.2f}",
-                delta=f"{ft_rate_team - ft_rate_opp:+.2f} vs Rivals",
-            )
-
-            st.markdown("---")
-
-            # 5. VOLUMS DE LLANÇAMENT
-            st.subheader("📦 Volums de Llançament de la Temporada")
-            col_v1, col_v2 = st.columns(2)
-
-            with col_v1:
-                pct_2p = (team_2pm / team_2pa * 100) if team_2pa > 0 else 0.0
-                pct_3p = (team_3pm / team_3pa * 100) if team_3pa > 0 else 0.0
-                pct_ft = (team_ftm / team_fta * 100) if team_fta > 0 else 0.0
-                pct_fg = (team_fgm / team_fga * 100) if team_fga > 0 else 0.0
-                pct_3par = (team_3pa / team_fga * 100) if team_fga > 0 else 0.0
-
-                df_vol_team = pd.DataFrame(
-                    [
-                        {
-                            "Concepte": "Tirs de Camp Totals (TC)",
-                            "Encertats / Intentats": f"{team_fgm} / {team_fga}",
-                            "Percentatge": f"{pct_fg:.1f}%",
-                            "Mitjana / Partit": f"{team_fga/num_partits:.1f} tirs",
-                        },
-                        {
-                            "Concepte": "Tirs de 2 Punts (T2)",
-                            "Encertats / Intentats": f"{team_2pm} / {team_2pa}",
-                            "Percentatge": f"{pct_2p:.1f}%",
-                            "Mitjana / Partit": f"{team_2pa/num_partits:.1f} tirs",
-                        },
-                        {
-                            "Concepte": "Triples (T3)",
-                            "Encertats / Intentats": f"{team_3pm} / {team_3pa}",
-                            "Percentatge": f"{pct_3p:.1f}%",
-                            "Mitjana / Partit": f"{team_3pa/num_partits:.1f} tirs",
-                        },
-                        {
-                            "Concepte": "Tirs Lliures (TL)",
-                            "Encertats / Intentats": f"{team_ftm} / {team_fta}",
-                            "Percentatge": f"{pct_ft:.1f}%",
-                            "Mitjana / Partit": f"{team_fta/num_partits:.1f} TL",
-                        },
-                        {
-                            "Concepte": "Ràtio de Triples (3PAr)",
-                            "Encertats / Intentats": f"{team_3pa} / {team_fga}",
-                            "Percentatge": f"{pct_3par:.1f}%",
-                            "Mitjana / Partit": f"{pct_3par:.1f}% dels TC",
-                        },
-                    ]
-                )
-                st.markdown("##### 🔴 Volums Argentona")
-                st.dataframe(
-                    df_vol_team, use_container_width=True, hide_index=True
-                )
-
-            with col_v2:
-                opp_pct_2p = (
-                    (opp_2pm / opp_2pa * 100) if opp_2pa > 0 else 0.0
-                )
-                opp_pct_3p = (
-                    (opp_3pm / opp_3pa * 100) if opp_3pa > 0 else 0.0
-                )
-                opp_pct_ft = (
-                    (opp_ftm / opp_fta * 100) if opp_fta > 0 else 0.0
-                )
-                opp_pct_fg = (
-                    (opp_fgm / opp_fga * 100) if opp_fga > 0 else 0.0
-                )
-                opp_pct_3par = (
-                    (opp_3pa / opp_fga * 100) if opp_fga > 0 else 0.0
-                )
-
-                df_vol_opp = pd.DataFrame(
-                    [
-                        {
-                            "Concepte": "Tirs de Camp Totals (TC)",
-                            "Encertats / Intentats": f"{opp_fgm} / {opp_fga}",
-                            "Percentatge": f"{opp_pct_fg:.1f}%",
-                            "Mitjana / Partit": f"{opp_fga/num_partits:.1f} tirs",
-                        },
-                        {
-                            "Concepte": "Tirs de 2 Punts (T2)",
-                            "Encertats / Intentats": f"{opp_2pm} / {opp_2pa}",
-                            "Percentatge": f"{opp_pct_2p:.1f}%",
-                            "Mitjana / Partit": f"{opp_2pa/num_partits:.1f} tirs",
-                        },
-                        {
-                            "Concepte": "Triples (T3)",
-                            "Encertats / Intentats": f"{opp_3pm} / {opp_3pa}",
-                            "Percentatge": f"{opp_pct_3p:.1f}%",
-                            "Mitjana / Partit": f"{opp_3pa/num_partits:.1f} tirs",
-                        },
-                        {
-                            "Concepte": "Tirs Lliures (TL)",
-                            "Encertats / Intentats": f"{opp_ftm} / {opp_fta}",
-                            "Percentatge": f"{opp_pct_ft:.1f}%",
-                            "Mitjana / Partit": f"{opp_fta/num_partits:.1f} TL",
-                        },
-                        {
-                            "Concepte": "Ràtio de Triples (3PAr)",
-                            "Encertats / Intentats": f"{opp_3pa} / {opp_fga}",
-                            "Percentatge": f"{opp_pct_3par:.1f}%",
-                            "Mitjana / Partit": f"{opp_pct_3par:.1f}% dels TC",
-                        },
-                    ]
-                )
-                st.markdown("##### 🛡️ Volums Rivals")
-                st.dataframe(
-                    df_vol_opp, use_container_width=True, hide_index=True
-                )
-
-            st.markdown("---")
-
-            # 6. TAULA ÚNICA DELS 4 FACTORS
-            win_efg_s = efg_team > efg_opp
-            win_tov_s = tov_team < tov_opp
-            win_oreb_s = oreb_team > oreb_opp
-            win_ft_s = ft_rate_team > ft_rate_opp
-            factors_guanyats_s = sum(
-                [win_efg_s, win_tov_s, win_oreb_s, win_ft_s]
-            )
-
-            st.subheader(
-                f"🎯 Els 4 Factors Reals de la Temporada — Balanç: {factors_guanyats_s}/4 Guanyats"
-            )
-
-            df_ff_unified_season = pd.DataFrame(
-                [
-                    {
-                        "Factor": "1. Tir Efectiu (eFG%)",
-                        "🔴 Atac Argentona": f"{efg_team:.1f}%",
-                        "🛡️ Defensa (Rivals)": f"{efg_opp:.1f}%",
-                        "Diferencial Net": f"{efg_team - efg_opp:+.1f}%",
-                        "Impacte": "🔴 Guanyat (Més efectivitat)"
-                        if win_efg_s
-                        else "🔵 Perdut",
-                    },
-                    {
-                        "Factor": "2. Control de Pèrdues (TOV%)",
-                        "🔴 Atac Argentona": f"{tov_team:.1f}%",
-                        "🛡️ Defensa (Rivals)": f"{tov_opp:.1f}%",
-                        "Diferencial Net": f"{tov_opp - tov_team:+.1f}% marge",
-                        "Impacte": "🔴 Guanyat (Millor cura de pilota)"
-                        if win_tov_s
-                        else "🔵 Perdut",
-                    },
-                    {
-                        "Factor": "3. Rebot Ofensiu (OREB%)",
-                        "🔴 Atac Argentona": f"{oreb_team:.1f}%",
-                        "🛡️ Defensa (Rivals)": f"{oreb_opp:.1f}%",
-                        "Diferencial Net": f"{oreb_team - oreb_opp:+.1f}%",
-                        "Impacte": "🔴 Guanyat (Més rebot ofensiu)"
-                        if win_oreb_s
-                        else "🔵 Perdut",
-                    },
-                    {
-                        "Factor": "4. Freqüència TL (FT Rate)",
-                        "🔴 Atac Argentona": f"{ft_rate_team:.2f}",
-                        "🛡️ Defensa (Rivals)": f"{ft_rate_opp:.2f}",
-                        "Diferencial Net": f"{ft_rate_team - ft_rate_opp:+.2f}",
-                        "Impacte": "🔴 Guanyat (Més producció TL)"
-                        if win_ft_s
-                        else "🔵 Perdut",
-                    },
-                ]
-            )
-
-            st.dataframe(
-                df_ff_unified_season, use_container_width=True, hide_index=True
-            )
-
-            st.markdown("---")
-
-            # 7. TARGETES D'EFICIÈNCIA GLOBAL (CÀLCUL PARTIT A PARTIT GARANTIT)
             game_possessions_list = []
             team_pts_list = []
             opp_pts_list = []
 
-            for gid in valid_ids:
-                gb = comp_box[comp_box["game_id"].astype(str) == str(gid)]
-                gl = comp_lineups[
-                    comp_lineups["game_id"].astype(str) == str(gid)
-                ]
-                ga = comp_adv[comp_adv["game_id"].astype(str) == str(gid)]
+            # Variables globals acumulades
+            team_fga, team_fgm, team_3pa, team_3pm = 0.0, 0.0, 0.0, 0.0
+            team_fta, team_ftm, team_oreb, team_dreb, team_tov, team_ast = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
+            opp_fga, opp_fgm, opp_3pa, opp_3pm = 0.0, 0.0, 0.0, 0.0
+            opp_fta, opp_ftm, opp_oreb, opp_dreb, opp_tov = 0.0, 0.0, 0.0, 0.0, 0.0
+            
+            team_paint_pts, team_paint_fga = 0.0, 0.0
+            team_nopaint_pts, team_nopaint_fga = 0.0, 0.0
+            opp_paint_pts, opp_paint_fga = 0.0, 0.0
+            opp_nopaint_pts, opp_nopaint_fga = 0.0, 0.0
 
-                # Punts d'Argentona del partit
-                g_tpts = float(
-                    pd.to_numeric(gb["Points"], errors="coerce").fillna(0).sum()
-                )
+            for gid in valid_ids:
+                gb = comp_box[comp_box["game_id"].astype(str) == str(gid)].copy()
+                gl = comp_lineups[comp_lineups["game_id"].astype(str) == str(gid)].copy()
+                ga = comp_adv[comp_adv["game_id"].astype(str) == str(gid)].copy()
+                gpbp = comp_pbp[comp_pbp["game_id"].astype(str) == str(gid)].copy()
+
+                # Eliminar les files de TOTALS/RIVALS del boxscore d'aquest partit
+                if not gb.empty and "Player" in gb.columns:
+                    gb = gb[~gb["Player"].astype(str).str.upper().str.strip().isin(["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"])]
+
+                # Punts d'Argentona
+                g_tpts = safe_col_sum(gb, "Points")
                 if g_tpts == 0 and not ga.empty:
-                    sc_r = ga[
-                        ga["Metric"]
-                        .astype(str)
-                        .str.contains(
-                            "Game Score|Score|Marcador",
-                            case=False,
-                            na=False,
-                        )
-                    ]
+                    sc_r = ga[ga["Metric"].astype(str).str.contains("Game Score|Score|Marcador", case=False, na=False)]
                     if not sc_r.empty:
                         g_tpts = float(sc_r["Team_Value"].values[0])
 
-                # Punts del Rival del partit (agafem el marcador oficial de Advanced Metrics)
+                # Punts del Rival
                 g_opts = 0.0
                 if not ga.empty:
-                    sc_r = ga[
-                        ga["Metric"]
-                        .astype(str)
-                        .str.contains(
-                            "Game Score|Score|Marcador",
-                            case=False,
-                            na=False,
-                        )
-                    ]
+                    sc_r = ga[ga["Metric"].astype(str).str.contains("Game Score|Score|Marcador", case=False, na=False)]
                     if not sc_r.empty:
                         g_opts = float(sc_r["Opp_Value"].values[0])
-
                 if g_opts == 0 and not gl.empty:
-                    g_opts = float(
-                        pd.to_numeric(gl["PTS_Agn"], errors="coerce")
-                        .fillna(0)
-                        .sum()
-                    )
+                    g_opts = safe_col_sum(gl, "PTS_Agn")
 
                 team_pts_list.append(g_tpts)
                 opp_pts_list.append(g_opts)
 
+                # Dades Tirs Argentona
+                g_t_2pa = safe_col_sum(gb, "2PA")
+                g_t_3pa = safe_col_sum(gb, "3PA")
+                g_tfga = g_t_2pa + g_t_3pa
+                g_tfta = safe_col_sum(gb, "FTA")
+                g_toreb = safe_col_sum(gb, "Off Reb")
+                g_ttov = safe_col_sum(gb, "Turnovers")
+                
+                team_fga += g_tfga
+                team_fgm += safe_col_sum(gb, "2PM") + safe_col_sum(gb, "3PM")
+                team_3pa += g_t_3pa
+                team_3pm += safe_col_sum(gb, "3PM")
+                team_fta += g_tfta
+                team_ftm += safe_col_sum(gb, "FTM")
+                team_oreb += g_toreb
+                team_dreb += safe_col_sum(gb, "Def Reb")
+                team_tov += g_ttov
+                team_ast += safe_col_sum(gb, "Assists")
+
+                g_t_rim_a = safe_col_sum(gb, "RIM(A)")
+                g_t_rim_m = safe_col_sum(gb, "RIM(M)")
+                g_t_paint_a = safe_col_sum(gb, "PAINT(A)")
+                g_t_paint_m = safe_col_sum(gb, "PAINT(M)")
+                team_paint_pts += (g_t_rim_m + g_t_paint_m) * 2
+                team_paint_fga += (g_t_rim_a + g_t_paint_a)
+                
+                g_t_mr_a = safe_col_sum(gb, "MR(A)")
+                g_t_mr_m = safe_col_sum(gb, "MR(M)")
+                g_t_c3_a = safe_col_sum(gb, "C3(A)")
+                g_t_c3_m = safe_col_sum(gb, "C3(M)")
+                g_t_atb3_a = safe_col_sum(gb, "ATB3(A)")
+                g_t_atb3_m = safe_col_sum(gb, "ATB3(M)")
+                team_nopaint_pts += (g_t_mr_m * 2 + g_t_c3_m * 3 + g_t_atb3_m * 3)
+                team_nopaint_fga += (g_t_mr_a + g_t_c3_a + g_t_atb3_a)
+
+                # Dades Tirs Rival
+                g_o_rim_a = safe_col_sum(gl, "Rim_FGA_Agn")
+                g_o_paint_a = safe_col_sum(gl, "Paint_FGA_Agn")
+                g_o_mr_a = safe_col_sum(gl, "MR_FGA_Agn")
+                g_o_c3_a = safe_col_sum(gl, "Cor3_FGA_Agn")
+                g_o_atb3_a = safe_col_sum(gl, "ATB3_FGA_Agn")
+                g_ofga = g_o_rim_a + g_o_paint_a + g_o_mr_a + g_o_c3_a + g_o_atb3_a
+                
+                g_o_fta = safe_col_sum(gl, "FTA_Agn")
+                g_o_oreb = safe_col_sum(gl, "OREB_Agn")
+                g_otov = safe_col_sum(gl, "TOV_Agn")
+
+                # Auto-recuperació Tirs Rival
+                if g_ofga == 0 and not gpbp.empty:
+                    os_a = gpbp[gpbp["Action"].astype(str).str.contains("Opponent.*Shot", case=False)]
+                    g_ofga = float(len(os_a))
+                    
+                if g_o_fta == 0 and not gpbp.empty:
+                    g_o_fta = float(gpbp["Action"].astype(str).str.contains("Opponent FT Score|Opponent FT Miss", case=False).sum())
+
+                opp_fga += g_ofga
+                opp_fgm += safe_col_sum(gl, "Rim_FGM_Agn") + safe_col_sum(gl, "Paint_FGM_Agn") + safe_col_sum(gl, "MR_FGM_Agn") + safe_col_sum(gl, "Cor3_FGM_Agn") + safe_col_sum(gl, "ATB3_FGM_Agn")
+                opp_3pa += g_o_c3_a + g_o_atb3_a
+                opp_3pm += safe_col_sum(gl, "Cor3_FGM_Agn") + safe_col_sum(gl, "ATB3_FGM_Agn")
+                opp_fta += g_o_fta
+                opp_ftm += safe_col_sum(gl, "FTM_Agn")
+                opp_oreb += g_o_oreb
+                opp_dreb += safe_col_sum(gl, "DREB_Agn")
+                opp_tov += g_otov
+
+                g_o_rim_m = safe_col_sum(gl, "Rim_FGM_Agn")
+                g_o_paint_m = safe_col_sum(gl, "Paint_FGM_Agn")
+                opp_paint_pts += (g_o_rim_m + g_o_paint_m) * 2
+                opp_paint_fga += (g_o_rim_a + g_o_paint_a)
+
+                g_o_mr_m = safe_col_sum(gl, "MR_FGM_Agn")
+                g_o_c3_m = safe_col_sum(gl, "Cor3_FGM_Agn")
+                g_o_atb3_m = safe_col_sum(gl, "ATB3_FGM_Agn")
+                opp_nopaint_pts += (g_o_mr_m * 2 + g_o_c3_m * 3 + g_o_atb3_m * 3)
+                opp_nopaint_fga += (g_o_mr_a + g_o_c3_a + g_o_atb3_a)
+
                 # Possessions del partit
-                g_tfga = (
-                    safe_col_sum(gb, "2PA")
-                    + safe_col_sum(gb, "3PA")
-                    if not gb.empty
-                    else 0.0
-                )
-                g_tfta = safe_col_sum(gb, "FTA") if not gb.empty else 0.0
-                g_toreb = safe_col_sum(gb, "Off Reb") if not gb.empty else 0.0
-                g_ttov = safe_col_sum(gb, "Turnovers") if not gb.empty else 0.0
                 g_tposs = g_tfga + 0.44 * g_tfta - g_toreb + g_ttov
-
-                g_ofga = (
-                    safe_col_sum(gl, "Rim_FGA_Agn")
-                    + safe_col_sum(gl, "Paint_FGA_Agn")
-                    + safe_col_sum(gl, "MR_FGA_Agn")
-                    + safe_col_sum(gl, "Cor3_FGA_Agn")
-                    + safe_col_sum(gl, "ATB3_FGA_Agn")
-                    if not gl.empty
-                    else 0.0
-                )
-                g_ofta = safe_col_sum(gl, "FTA_Agn") if not gl.empty else 0.0
-                g_ooreb = safe_col_sum(gl, "OREB_Agn") if not gl.empty else 0.0
-                g_otov = safe_col_sum(gl, "TOV_Agn") if not gl.empty else 0.0
-                g_oposs = g_ofga + 0.44 * g_ofta - g_ooreb + g_otov
-
-                if g_tposs >= 15.0 and g_oposs >= 15.0:
-                    g_match_poss = 0.5 * (g_tposs + g_oposs)
-                elif g_tposs >= 15.0:
-                    g_match_poss = g_tposs
-                elif g_oposs >= 15.0:
-                    g_match_poss = g_oposs
-                else:
-                    g_match_poss = 80.0
-
+                g_oposs = g_ofga + 0.44 * g_o_fta - g_o_oreb + g_otov
+                g_match_poss = 0.5 * (g_tposs + g_oposs) if (g_tposs > 15 and g_oposs > 15) else (g_tposs if g_tposs > 15 else 80.0)
                 game_possessions_list.append(g_match_poss)
 
-            # Sumatoris totals reals
+            # --- RESULTATS ACUMULATS REALS ---
             team_pts = sum(team_pts_list)
             opp_pts = sum(opp_pts_list)
             norm_poss_tot = sum(game_possessions_list)
-            norm_poss_game = (
-                norm_poss_tot / num_partits if num_partits > 0 else 0.0
-            )
+            norm_poss_game = norm_poss_tot / num_partits if num_partits > 0 else 0.0
 
-            tot_team_min = comp_box["MIN"].apply(parse_min_to_float).sum()
-            pace_season = (
-                (norm_poss_tot / tot_team_min) * 200.0
-                if tot_team_min >= 100.0 * num_partits
-                else norm_poss_game
-            )
+            # Càlcul de minuts purs de jugadors
+            if "Player" in comp_box.columns:
+                cb_clean = comp_box[~comp_box["Player"].astype(str).str.upper().str.strip().isin(["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"])]
+                tot_team_min = cb_clean["MIN"].apply(parse_min_to_float).sum()
+            else:
+                tot_team_min = 0.0
 
-            # OER i DER reals de la temporada
-            season_oer = (
-                (team_pts / norm_poss_tot) * 100.0 if norm_poss_tot > 0 else 0.0
-            )
-            season_der = (
-                (opp_pts / norm_poss_tot) * 100.0 if norm_poss_tot > 0 else 0.0
-            )
+            pace_season = (norm_poss_tot / tot_team_min) * 200.0 if tot_team_min >= 100.0 * num_partits else norm_poss_game
+            season_oer = (team_pts / norm_poss_tot) * 100.0 if norm_poss_tot > 0 else 0.0
+            season_der = (opp_pts / norm_poss_tot) * 100.0 if norm_poss_tot > 0 else 0.0
             season_net = season_oer - season_der
             ppg_team = team_pts / num_partits if num_partits > 0 else 0.0
             ppg_opp = opp_pts / num_partits if num_partits > 0 else 0.0
 
+            # 4 Factors de Dean Oliver
+            efg_team = (((team_fgm + 0.5 * team_3pm) / team_fga * 100) if team_fga > 0 else 0.0)
+            efg_opp = (((opp_fgm + 0.5 * opp_3pm) / opp_fga * 100) if opp_fga > 0 else 0.0)
+
+            team_plays = team_fga + 0.44 * team_fta + team_tov
+            opp_plays = opp_fga + 0.44 * opp_fta + opp_tov
+            tov_team = (team_tov / team_plays * 100) if team_plays > 0 else 0.0
+            tov_opp = (opp_tov / opp_plays * 100) if opp_plays > 0 else 0.0
+
+            oreb_team = (team_oreb / (team_oreb + opp_dreb) * 100) if (team_oreb + opp_dreb) > 0 else 0.0
+            oreb_opp = (opp_oreb / (opp_oreb + team_dreb) * 100) if (opp_oreb + team_dreb) > 0 else 0.0
+
+            ft_rate_team = (team_ftm / team_fga) if team_fga > 0 else 0.0
+            ft_rate_opp = (opp_ftm / opp_fga) if opp_fga > 0 else 0.0
+
             st.subheader("⚡ Eficiència Global de la Temporada")
             c_pace_s, c_oer_s, c_der_s = st.columns(3)
-            c_pace_s.metric(
-                "⏱️ Ritme de Joc (Pace a 40 min)",
-                f"{pace_season:.1f} poss",
-                delta=f"{norm_poss_game:.1f} poss/partit",
-            )
-            c_oer_s.metric(
-                "🎯 OER (Eficiència Ofensiva)",
-                f"{season_oer:.1f} pts/100",
-                delta=f"{season_net:+.1f} Net Rating",
-            )
-            c_der_s.metric(
-                "🛡️ DER (Eficiència Defensiva)",
-                f"{season_der:.1f} pts/100",
-                delta=f"{season_oer - season_der:+.1f} marge",
-            )
+            c_pace_s.metric("⏱️ Ritme de Joc (Pace a 40 min)", f"{pace_season:.1f} poss", delta=f"{norm_poss_game:.1f} poss/partit")
+            c_oer_s.metric("🎯 OER (Eficiència Ofensiva)", f"{season_oer:.1f} pts/100", delta=f"{season_net:+.1f} Net Rating")
+            c_der_s.metric("🛡️ DER (Eficiència Defensiva)", f"{season_der:.1f} pts/100", delta=f"{season_oer - season_der:+.1f} marge")
 
             st.markdown("---")
 
-            # 8. TAULA DE DESGLOSSAMENT D'EFICIÈNCIA ACUMULADA (14 FILES FIXES)
             st.subheader("📊 Desglossament d'Eficiència de Tir i Joc")
             col_table, _ = st.columns([3, 1])
 
             with col_table:
-                pps_team_real = (
-                    (team_fg_pts / team_fga) if team_fga > 0 else 0.0
-                )
-                pps_opp_real = (opp_fg_pts / opp_fga) if opp_fga > 0 else 0.0
+                pps_team_real = (team_pts - team_ftm) / team_fga if team_fga > 0 else 0.0
+                pps_opp_real = (opp_pts - opp_ftm) / opp_fga if opp_fga > 0 else 0.0
+                paint_pps_t = team_paint_pts / team_paint_fga if team_paint_fga > 0 else 0.0
+                paint_pps_o = opp_paint_pts / opp_paint_fga if opp_paint_fga > 0 else 0.0
+                nopaint_pps_t = team_nopaint_pts / team_nopaint_fga if team_nopaint_fga > 0 else 0.0
+                nopaint_pps_o = opp_nopaint_pts / opp_nopaint_fga if opp_nopaint_fga > 0 else 0.0
 
-                paint_pps_t = (
-                    (team_paint_pts / team_paint_fga)
-                    if team_paint_fga > 0
-                    else 0.0
-                )
-                paint_pps_o = (
-                    (opp_paint_pts / opp_paint_fga) if opp_paint_fga > 0 else 0.0
-                )
-
-                nopaint_pps_t = (
-                    (team_nopaint_pts / team_nopaint_fga)
-                    if team_nopaint_fga > 0
-                    else 0.0
-                )
-                nopaint_pps_o = (
-                    (opp_nopaint_pts / opp_nopaint_fga)
-                    if opp_nopaint_fga > 0
-                    else 0.0
-                )
-
-                # Cercar sumatoris d'Advanced Metrics
-                def get_adv_sum(metric_patterns):
-                    t_val = 0.0
-                    o_val = 0.0
-                    for _, r in comp_adv.iterrows():
-                        m_l = str(r["Metric"]).lower()
-                        if any(p.lower() in m_l for p in metric_patterns):
-                            try:
-                                t_val += float(r["Team_Value"])
-                                o_val += float(r["Opp_Value"])
-                            except Exception:
-                                pass
-                    return t_val, o_val
-
-                # Extreure valors acumulats
-                fb_pps_t_sum, fb_pps_o_sum = get_adv_sum(
-                    ["fastbreak pps", "transició pps"]
-                )
-                half_pps_t_sum, half_pps_o_sum = get_adv_sum(
-                    ["half-court pps", "estàtic", "estatic"]
-                )
-                pt_t_sum, pt_o_sum = get_adv_sum(
-                    ["total paint touches", "tocs a pintura"]
-                )
-                pto_t_sum, pto_o_sum = get_adv_sum(
-                    ["points off live to", "pts off to", "points off"]
-                )
-                lto_t_sum, lto_o_sum = get_adv_sum(["live turnovers", "lto"])
-                dto_t_sum, dto_o_sum = get_adv_sum(["dead turnovers", "dto"])
-                fb_t_sum, fb_o_sum = get_adv_sum(
-                    ["total fastbreaks", "transicions totals"]
-                )
-                ch2_t_sum, ch2_o_sum = get_adv_sum(
-                    ["2nd chance points", "2a oportunitat"]
-                )
-                kills_t_sum, kills_o_sum = get_adv_sum(
-                    ["defensive kills", "kills"]
-                )
-                stocks_t_sum, stocks_o_sum = get_adv_sum(
-                    ["stocks", "steals + blocks"]
-                )
-
-                # Calcular mitjanes per partit
-                pbp_stats_s = compute_pbp_advanced_stats(comp_pbp, game_id=None)
-                n_p = float(num_partits) if num_partits > 0 else 1.0
+                pbp_stats_season = compute_pbp_advanced_stats(comp_pbp, game_id=None)
 
                 table_rows_season = [
-                    (
-                        "Marcador del Partit",
-                        f"{ppg_team:.1f} ({int(team_pts)} pts)",
-                        f"{ppg_opp:.1f} ({int(opp_pts)} pts)",
-                        ppg_team,
-                        ppg_opp,
-                        abs(ppg_team - ppg_opp) >= 2.0,
-                        False,
-                    ),
-                    (
-                        "Punts de Tir de Camp per Intent (PPS en joc)",
-                        f"{pps_team_real:.2f}",
-                        f"{pps_opp_real:.2f}",
-                        pps_team_real,
-                        pps_opp_real,
-                        abs(pps_team_real - pps_opp_real) >= 0.15,
-                        False,
-                    ),
-                    (
-                        "PPS amb Toc a Pintura",
-                        f"{paint_pps_t:.2f}",
-                        f"{paint_pps_o:.2f}",
-                        paint_pps_t,
-                        paint_pps_o,
-                        abs(paint_pps_t - paint_pps_o) >= 0.15,
-                        False,
-                    ),
-                    (
-                        "PPS sense Toc a Pintura",
-                        f"{nopaint_pps_t:.2f}",
-                        f"{nopaint_pps_o:.2f}",
-                        nopaint_pps_t,
-                        nopaint_pps_o,
-                        abs(nopaint_pps_t - nopaint_pps_o) >= 0.15,
-                        False,
-                    ),
-                    (
-                        "PPS en Transició (Contraatac)",
-                        f"{pbp_stats_s.get('fb_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_s.get('fb_pps_o', 0.0):.2f}",
-                        pbp_stats_s.get("fb_pps_t", 0.0),
-                        pbp_stats_s.get("fb_pps_o", 0.0),
-                        abs(
-                            pbp_stats_s.get("fb_pps_t", 0.0)
-                            - pbp_stats_s.get("fb_pps_o", 0.0)
-                        )
-                        >= 0.15,
-                        False,
-                    ),
-                    (
-                        "PPS en Atac Estàtic (5c5)",
-                        f"{pbp_stats_s.get('hc_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_s.get('hc_pps_o', 0.0):.2f}",
-                        pbp_stats_s.get("hc_pps_t", 0.0),
-                        pbp_stats_s.get("hc_pps_o", 0.0),
-                        abs(
-                            pbp_stats_s.get("hc_pps_t", 0.0)
-                            - pbp_stats_s.get("hc_pps_o", 0.0)
-                        )
-                        >= 0.15,
-                        False,
-                    ),
-                    (
-                        "Punts de Pèrdua Viva (PTS OFF TO)",
-                        f"{(pbp_stats_s.get('pts_off_to_t', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('pts_off_to_t', 0))})",
-                        f"{(pbp_stats_s.get('pts_off_to_o', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('pts_off_to_o', 0))})",
-                        pbp_stats_s.get("pts_off_to_t", 0.0) / n_p,
-                        pbp_stats_s.get("pts_off_to_o", 0.0) / n_p,
-                        abs(
-                            pbp_stats_s.get("pts_off_to_t", 0.0)
-                            - pbp_stats_s.get("pts_off_to_o", 0.0)
-                        )
-                        / n_p
-                        >= 2.0,
-                        False,
-                    ),
-                    (
-                        "Pèrdues Vives (LTO)",
-                        f"{(pbp_stats_s.get('lto_t', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('lto_t', 0))})",
-                        f"{(pbp_stats_s.get('lto_o', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('lto_o', 0))})",
-                        pbp_stats_s.get("lto_t", 0.0) / n_p,
-                        pbp_stats_s.get("lto_o", 0.0) / n_p,
-                        abs(
-                            pbp_stats_s.get("lto_t", 0.0) - pbp_stats_s.get("lto_o", 0.0)
-                        )
-                        / n_p
-                        >= 1.5,
-                        True,
-                    ),
-                    (
-                        "Pèrdues Mortes (DTO)",
-                        f"{(pbp_stats_s.get('dto_t', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('dto_t', 0))})",
-                        f"{(pbp_stats_s.get('dto_o', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('dto_o', 0))})",
-                        pbp_stats_s.get("dto_t", 0.0) / n_p,
-                        pbp_stats_s.get("dto_o", 0.0) / n_p,
-                        abs(
-                            pbp_stats_s.get("dto_t", 0.0) - pbp_stats_s.get("dto_o", 0.0)
-                        )
-                        / n_p
-                        >= 1.5,
-                        True,
-                    ),
-                    (
-                        "Transicions Totals",
-                        f"{(fb_t_sum/n_p):.1f} ({int(fb_t_sum)})",
-                        f"{(fb_o_sum/n_p):.1f} ({int(fb_o_sum)})",
-                        fb_t_sum / n_p,
-                        fb_o_sum / n_p,
-                        abs(fb_t_sum - fb_o_sum) / n_p >= 2.0,
-                        False,
-                    ),
-                    (
-                        "Punts de 2a Oportunitat",
-                        f"{(ch2_t_sum/n_p):.1f} ({int(ch2_t_sum)})",
-                        f"{(ch2_o_sum/n_p):.1f} ({int(ch2_o_sum)})",
-                        ch2_t_sum / n_p,
-                        ch2_o_sum / n_p,
-                        abs(ch2_t_sum - ch2_o_sum) / n_p >= 2.0,
-                        False,
-                    ),
-                    (
-                        "Kills Defensius (3 Aturades Seguidas)",
-                        f"{(kills_t_sum/n_p):.1f} ({int(kills_t_sum)})",
-                        f"{(kills_o_sum/n_p):.1f} ({int(kills_o_sum)})",
-                        kills_t_sum / n_p,
-                        kills_o_sum / n_p,
-                        abs(kills_t_sum - kills_o_sum) / n_p >= 1.5,
-                        False,
-                    ),
-                    (
-                        "Stocks (Recuperacions + Taps)",
-                        f"{(stocks_t_sum/n_p):.1f} ({int(stocks_t_sum)})",
-                        f"{(stocks_o_sum/n_p):.1f} ({int(stocks_o_sum)})",
-                        stocks_t_sum / n_p,
-                        stocks_o_sum / n_p,
-                        abs(stocks_t_sum - stocks_o_sum) / n_p >= 2.0,
-                        False,
-                    ),
+                    ("Marcador del Partit", f"{ppg_team:.1f} ({int(team_pts)} pts)", f"{ppg_opp:.1f} ({int(opp_pts)} pts)", ppg_team, ppg_opp, abs(ppg_team - ppg_opp) >= 2.0, False),
+                    ("1. Tir Efectiu (eFG%)", f"{efg_team:.1f}% ({int(team_fgm)}/{int(team_fga)} TC)", f"{efg_opp:.1f}% ({int(opp_fgm)}/{int(opp_fga)} TC)", efg_team, efg_opp, abs(efg_team - efg_opp) >= 3.0, False),
+                    ("2. Control de Pèrdues (TOV%)", f"{tov_team:.1f}% ({int(team_tov)} PER)", f"{tov_opp:.1f}% ({int(opp_tov)} PER)", tov_team, tov_opp, abs(tov_team - tov_opp) >= 3.0, True),
+                    ("3. Rebot Ofensiu (OREB%)", f"{oreb_team:.1f}% ({int(team_oreb)} Reb.O)", f"{oreb_opp:.1f}% ({int(opp_oreb)} Reb.O)", oreb_team, oreb_opp, abs(oreb_team - oreb_opp) >= 3.0, False),
+                    ("4. Freqüència TL (FT Rate)", f"{ft_rate_team:.2f} ({int(team_ftm)} TL)", f"{ft_rate_opp:.2f} ({int(opp_ftm)} TL)", ft_rate_team, ft_rate_opp, abs(ft_rate_team - ft_rate_opp) >= 0.05, False),
+                    ("Punts de Tir de Camp per Intent (PPS en joc)", f"{pps_team_real:.2f}", f"{pps_opp_real:.2f}", pps_team_real, pps_opp_real, abs(pps_team_real - pps_opp_real) >= 0.15, False),
+                    ("PPS amb Toc a Pintura", f"{paint_pps_t:.2f}", f"{paint_pps_o:.2f}", paint_pps_t, paint_pps_o, abs(paint_pps_t - paint_pps_o) >= 0.15, False),
+                    ("PPS sense Toc a Pintura", f"{nopaint_pps_t:.2f}", f"{nopaint_pps_o:.2f}", nopaint_pps_t, nopaint_pps_o, abs(nopaint_pps_t - nopaint_pps_o) >= 0.15, False),
                 ]
 
                 rows_s_disp = []
                 styles_s_disp = []
-
-                for (
-                    m_nom,
-                    tv_str,
-                    ov_str,
-                    tv_num,
-                    ov_num,
-                    is_outlier,
-                    lower_is_better,
-                ) in table_rows_season:
+                for m_nom, tv_str, ov_str, tv_num, ov_num, is_outlier, lower_is_better in table_rows_season:
                     if not is_outlier or tv_num == ov_num:
                         uem_css, riv_css = STYLE_NEUTRAL, STYLE_NEUTRAL
                     elif lower_is_better:
-                        if tv_num < ov_num:
-                            uem_css, riv_css = STYLE_RED, STYLE_BLUE
-                        else:
-                            uem_css, riv_css = STYLE_BLUE, STYLE_RED
+                        uem_css, riv_css = (STYLE_RED, STYLE_BLUE) if tv_num < ov_num else (STYLE_BLUE, STYLE_RED)
                     else:
-                        if tv_num > ov_num:
-                            uem_css, riv_css = STYLE_RED, STYLE_BLUE
-                        else:
-                            uem_css, riv_css = STYLE_BLUE, STYLE_RED
+                        uem_css, riv_css = (STYLE_RED, STYLE_BLUE) if tv_num > ov_num else (STYLE_BLUE, STYLE_RED)
 
-                    rows_s_disp.append(
-                        {"Mètrica": m_nom, "Argentona": tv_str, "Rivals": ov_str}
-                    )
+                    rows_s_disp.append({"Mètrica": m_nom, "Argentona": tv_str, "Rivals": ov_str})
                     styles_s_disp.append((uem_css, riv_css))
 
                 df_display_season = pd.DataFrame(rows_s_disp)
@@ -2783,15 +2306,14 @@ else:
                         css_df.loc[i, "Rivals"] = riv_css
                     return css_df
 
-                table_height = (len(df_display_season) + 1) * 36 + 3
                 st.dataframe(
-                    df_display_season.style.apply(
-                        apply_text_styles_season, axis=None
-                    ),
-                    height=table_height,
+                    df_display_season.style.apply(apply_text_styles_season, axis=None),
                     use_container_width=True,
                     hide_index=True,
                 )
+
+        else:
+            st.info("No hi ha dades acumulades disponibles.")
 
     # -------------------------------------------------------------
     # 2. SECCIÓ BOX SCORE (TOTALS ACUMULATS)
