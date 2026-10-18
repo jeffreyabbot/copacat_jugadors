@@ -180,14 +180,7 @@ def parse_boxscore(file_path: Path, game_id: str) -> pd.DataFrame:
         df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
         df = df.dropna(how="all").copy()
 
-        # FILTRAR AUTOMÀTICAMENT FILES DE TOTALS I RIVALS DEL BOXSCORE
-        if "Player" in df.columns:
-            p_upper = df["Player"].astype(str).str.upper().str.strip()
-            # Ignorem files que siguin TOTALS, TOTAL, OPPONENT, RIVAL o buides
-            is_summary = p_upper.isin(
-                ["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"]
-            )
-            df = df[~is_summary].copy()
+        
 
         if "Name" in df.columns:
             n_upper = df["Name"].astype(str).str.upper().str.strip()

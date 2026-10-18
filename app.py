@@ -256,14 +256,7 @@ games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
 for df_obj in [games_df, box_df, lineups_df, adv_df, pbp_df]:
     if not df_obj.empty and "game_id" not in df_obj.columns:
         df_obj["game_id"] = ""
-# Filtre de seguretat: assegurar que box_df només té jugadors individuals
-if not box_df.empty and "Player" in box_df.columns:
-    p_up = box_df["Player"].astype(str).str.upper().str.strip()
-    box_df = box_df[
-        ~p_up.isin(
-            ["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"]
-        )
-    ].copy()
+
 
 # --- BARRA LATERAL ---
 # 1. Mostrar el logo si existeix a la carpeta assets o a l'arrel
@@ -948,279 +941,126 @@ if view_mode == "Partit Individual":
             adv_dict_team = dict(zip(g_adv["Metric"], g_adv["Team_Value"]))
             adv_dict_opp = dict(zip(g_adv["Metric"], g_adv["Opp_Value"]))
 
-            # 1. SUMATORIS REALS D'ARGENTONA
-            s_team_rim_m = float(
-                pd.to_numeric(g_box_m["RIM(M)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_rim_a = float(
-                pd.to_numeric(g_box_m["RIM(A)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_paint_m = float(
-                pd.to_numeric(g_box_m["PAINT(M)"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_team_paint_a = float(
-                pd.to_numeric(g_box_m["PAINT(A)"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_team_mr_m = float(
-                pd.to_numeric(g_box_m["MR(M)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_mr_a = float(
-                pd.to_numeric(g_box_m["MR(A)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_c3_m = float(
-                pd.to_numeric(g_box_m["C3(M)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_c3_a = float(
-                pd.to_numeric(g_box_m["C3(A)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_atb3_m = float(
-                pd.to_numeric(g_box_m["ATB3(M)"], errors="coerce").fillna(0).sum()
-            )
-            s_team_atb3_a = float(
-                pd.to_numeric(g_box_m["ATB3(A)"], errors="coerce").fillna(0).sum()
-            )
-
-            s_team_2pm = s_team_rim_m + s_team_paint_m + s_team_mr_m
-            s_team_2pa = s_team_rim_a + s_team_paint_a + s_team_mr_a
-            s_team_3pm = s_team_c3_m + s_team_atb3_m
-            s_team_3pa = s_team_c3_a + s_team_atb3_a
-            s_team_fgm = s_team_2pm + s_team_3pm
-            s_team_fga = s_team_2pa + s_team_3pa
-
-            s_team_ftm = float(
-                pd.to_numeric(g_box_m["FTM"], errors="coerce").fillna(0).sum()
-            )
-            s_team_fta = float(
-                pd.to_numeric(g_box_m["FTA"], errors="coerce").fillna(0).sum()
-            )
-            s_team_oreb = float(
-                pd.to_numeric(g_box_m["Off Reb"], errors="coerce").fillna(0).sum()
-            )
-            s_team_dreb = float(
-                pd.to_numeric(g_box_m["Def Reb"], errors="coerce").fillna(0).sum()
-            )
-            s_team_tov = float(
-                pd.to_numeric(g_box_m["Turnovers"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-
-            s_team_paint_pts = (s_team_rim_m + s_team_paint_m) * 2.0
-            s_team_paint_fga = s_team_rim_a + s_team_paint_a
-
-            s_team_nopaint_pts = (
-                s_team_mr_m * 2.0 + s_team_c3_m * 3.0 + s_team_atb3_m * 3.0
-            )
-            s_team_nopaint_fga = s_team_mr_a + s_team_c3_a + s_team_atb3_a
-            s_team_fg_pts = s_team_paint_pts + s_team_nopaint_pts
-
-            # Marcador oficial
-            score_row = g_adv[
-                g_adv["Metric"]
-                .astype(str)
-                .str.contains("Game Score|Score|Marcador", case=False, na=False)
+            # 1. LLEGIM ELS VOLUMS DIRECTAMENT DE LES FILES 'TOTALS' I 'OPPONENT'
+            our_totals = comp_box[
+                comp_box["Player"].astype(str).str.upper().str.strip().isin(["TOTALS", "TOTAL", "TEAM TOTAL", "EQUIP"])
             ]
-            if not score_row.empty:
-                s_team_pts = float(score_row["Team_Value"].values[0])
-                s_opp_pts = float(score_row["Opp_Value"].values[0])
-            else:
-                s_team_pts = s_team_fg_pts + s_team_ftm
-                s_opp_pts = float(
-                    pd.to_numeric(g_line_m["PTS_Agn"], errors="coerce")
-                    .fillna(0)
-                    .sum()
-                )
+            opp_totals = comp_box[
+                comp_box["Player"].astype(str).str.upper().str.strip().isin(["OPPONENT", "RIVAL"])
+            ]
 
-            # 2. SUMATORIS REALS DEL RIVAL (Amb rescat automàtic des del Play-by-Play)
-            s_opp_rim_m = float(
-                pd.to_numeric(g_line_m["Rim_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_rim_a = float(
-                pd.to_numeric(g_line_m["Rim_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_paint_m = float(
-                pd.to_numeric(g_line_m["Paint_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_paint_a = float(
-                pd.to_numeric(g_line_m["Paint_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_mr_m = float(
-                pd.to_numeric(g_line_m["MR_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_mr_a = float(
-                pd.to_numeric(g_line_m["MR_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_c3_m = float(
-                pd.to_numeric(g_line_m["Cor3_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_c3_a = float(
-                pd.to_numeric(g_line_m["Cor3_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_atb3_m = float(
-                pd.to_numeric(g_line_m["ATB3_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_atb3_a = float(
-                pd.to_numeric(g_line_m["ATB3_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
+            def safe_tot(df, col):
+                if col in df.columns:
+                    return float(pd.to_numeric(df[col], errors="coerce").fillna(0).sum())
+                return 0.0
 
-            s_opp_2pm = s_opp_rim_m + s_opp_paint_m + s_opp_mr_m
-            s_opp_2pa = s_opp_rim_a + s_opp_paint_a + s_opp_mr_a
-            s_opp_3pm = s_opp_c3_m + s_opp_atb3_m
-            s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
-            s_opp_fgm = s_opp_2pm + s_opp_3pm
-            s_opp_fga = s_opp_2pa + s_opp_3pa
+            # 2. VOLUMS REALS ACUMULATS (Argentona)
+            team_pts = safe_tot(our_totals, "Points")
+            team_2pm = int(safe_tot(our_totals, "2PM"))
+            team_2pa = int(safe_tot(our_totals, "2PA"))
+            team_3pm = int(safe_tot(our_totals, "3PM"))
+            team_3pa = int(safe_tot(our_totals, "3PA"))
+            team_fgm = team_2pm + team_3pm
+            team_fga = team_2pa + team_3pa
 
-            s_opp_ftm = float(
-                pd.to_numeric(g_line_m["FTM_Agn"], errors="coerce").fillna(0).sum()
-            )
-            s_opp_fta = float(
-                pd.to_numeric(g_line_m["FTA_Agn"], errors="coerce").fillna(0).sum()
-            )
-            s_opp_oreb = float(
-                pd.to_numeric(g_line_m["OREB_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_dreb = float(
-                pd.to_numeric(g_line_m["DREB_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_tov = float(
-                pd.to_numeric(g_line_m["TOV_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
+            team_ftm = int(safe_tot(our_totals, "FTM"))
+            team_fta = int(safe_tot(our_totals, "FTA"))
+            team_oreb = int(safe_tot(our_totals, "Off Reb"))
+            team_dreb = int(safe_tot(our_totals, "Def Reb"))
+            team_tov = int(safe_tot(our_totals, "Turnovers"))
+            team_ast = int(safe_tot(our_totals, "Assists"))
 
-            # 🛡️ AUTO-RECUPERACIÓ DELS TIRS DEL RIVAL DES DEL PLAY-BY-PLAY SI A QUINTETS DONEN 0
-            if s_opp_fga == 0.0 and not pbp_df.empty:
-                p_match = pbp_df[
-                    pbp_df["game_id"].astype(str) == str(selected_game_id)
-                ]
-                if not p_match.empty:
-                    opp_shots = p_match[
-                        p_match["Action"]
-                        .astype(str)
-                        .str.contains("Opponent.*Shot", case=False, regex=True)
-                    ]
+            # Zones Argentona
+            team_rim_m = int(safe_tot(our_totals, "RIM(M)"))
+            team_rim_a = int(safe_tot(our_totals, "RIM(A)"))
+            team_paint_m = int(safe_tot(our_totals, "PAINT(M)"))
+            team_paint_a = int(safe_tot(our_totals, "PAINT(A)"))
+            team_paint_pts = (team_rim_m + team_paint_m) * 2
+            team_paint_fga = team_rim_a + team_paint_a
 
-                    s_opp_rim_m = float(
-                        (
-                            opp_shots["Action"].str.contains("RIM", case=False)
-                            & (opp_shots["Result"].str.lower() == "make")
-                        ).sum()
-                    )
-                    s_opp_rim_a = float(
-                        opp_shots["Action"]
-                        .str.contains("RIM", case=False)
-                        .sum()
-                    )
-                    s_opp_paint_m = float(
-                        (
-                            opp_shots["Action"].str.contains(
-                                "PAINT", case=False
-                            )
-                            & (opp_shots["Result"].str.lower() == "make")
-                        ).sum()
-                    )
-                    s_opp_paint_a = float(
-                        opp_shots["Action"]
-                        .str.contains("PAINT", case=False)
-                        .sum()
-                    )
-                    s_opp_mr_m = float(
-                        (
-                            opp_shots["Action"].str.contains("MR", case=False)
-                            & (opp_shots["Result"].str.lower() == "make")
-                        ).sum()
-                    )
-                    s_opp_mr_a = float(
-                        opp_shots["Action"].str.contains("MR", case=False).sum()
-                    )
-                    s_opp_c3_m = float(
-                        (
-                            opp_shots["Action"].str.contains("C3", case=False)
-                            & (opp_shots["Result"].str.lower() == "make")
-                        ).sum()
-                    )
-                    s_opp_c3_a = float(
-                        opp_shots["Action"].str.contains("C3", case=False).sum()
-                    )
-                    s_opp_atb3_m = float(
-                        (
-                            opp_shots["Action"].str.contains(
-                                "ATB3", case=False
-                            )
-                            & (opp_shots["Result"].str.lower() == "make")
-                        ).sum()
-                    )
-                    s_opp_atb3_a = float(
-                        opp_shots["Action"]
-                        .str.contains("ATB3", case=False)
-                        .sum()
-                    )
+            team_mr_m = int(safe_tot(our_totals, "MR(M)"))
+            team_mr_a = int(safe_tot(our_totals, "MR(A)"))
+            team_c3_m = int(safe_tot(our_totals, "C3(M)"))
+            team_c3_a = int(safe_tot(our_totals, "C3(A)"))
+            team_atb3_m = int(safe_tot(our_totals, "ATB3(M)"))
+            team_atb3_a = int(safe_tot(our_totals, "ATB3(A)"))
+            team_nopaint_pts = team_mr_m * 2 + team_c3_m * 3 + team_atb3_m * 3
+            team_nopaint_fga = team_mr_a + team_c3_a + team_atb3_a
 
-                    s_opp_2pm = s_opp_rim_m + s_opp_paint_m + s_opp_mr_m
-                    s_opp_2pa = s_opp_rim_a + s_opp_paint_a + s_opp_mr_a
-                    s_opp_3pm = s_opp_c3_m + s_opp_atb3_m
-                    s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
-                    s_opp_fgm = s_opp_2pm + s_opp_3pm
-                    s_opp_fga = s_opp_2pa + s_opp_3pa
+            team_fg_pts = team_paint_pts + team_nopaint_pts
+            if team_pts == 0:
+                team_pts = team_fg_pts + team_ftm
 
-            # Rescat automàtic de tirs lliures del rival si estan a 0
-            if s_opp_fta == 0.0 and not pbp_df.empty:
-                p_match = pbp_df[
-                    pbp_df["game_id"].astype(str) == str(selected_game_id)
-                ]
-                if not p_match.empty:
-                    o_ft_m = float(
-                        p_match["Action"]
-                        .astype(str)
-                        .str.contains("Opponent FT Score", case=False)
-                        .sum()
-                    )
-                    o_ft_miss = float(
-                        p_match["Action"]
-                        .astype(str)
-                        .str.contains("Opponent FT Miss", case=False)
-                        .sum()
-                    )
-                    if (o_ft_m + o_ft_miss) > 0:
-                        s_opp_ftm = o_ft_m
-                        s_opp_fta = o_ft_m + o_ft_miss
+            # 3. VOLUMS REALS ACUMULATS (Rivals)
+            opp_pts = safe_tot(opp_totals, "Points")
+            opp_2pm = int(safe_tot(opp_totals, "2PM"))
+            opp_2pa = int(safe_tot(opp_totals, "2PA"))
+            opp_3pm = int(safe_tot(opp_totals, "3PM"))
+            opp_3pa = int(safe_tot(opp_totals, "3PA"))
+            opp_fgm = opp_2pm + opp_3pm
+            opp_fga = opp_2pa + opp_3pa
 
-            # Càlcul de punts per zones del rival
-            s_opp_paint_pts = (s_opp_rim_m + s_opp_paint_m) * 2.0
-            s_opp_paint_fga = s_opp_rim_a + s_opp_paint_a
-            s_opp_nopaint_pts = (
-                s_opp_mr_m * 2.0 + s_opp_c3_m * 3.0 + s_opp_atb3_m * 3.0
-            )
-            s_opp_nopaint_fga = s_opp_mr_a + s_opp_c3_a + s_opp_atb3_a
-            s_opp_fg_pts = s_opp_paint_pts + s_opp_nopaint_pts
+            opp_ftm = int(safe_tot(opp_totals, "FTM"))
+            opp_fta = int(safe_tot(opp_totals, "FTA"))
+            opp_oreb = int(safe_tot(opp_totals, "Off Reb"))
+            opp_dreb = int(safe_tot(opp_totals, "Def Reb"))
+            opp_tov = int(safe_tot(opp_totals, "Turnovers"))
+
+            # Zones Rivals
+            opp_rim_m = int(safe_tot(opp_totals, "RIM(M)"))
+            opp_rim_a = int(safe_tot(opp_totals, "RIM(A)"))
+            opp_paint_m = int(safe_tot(opp_totals, "PAINT(M)"))
+            opp_paint_a = int(safe_tot(opp_totals, "PAINT(A)"))
+            opp_paint_pts = (opp_rim_m + opp_paint_m) * 2
+            opp_paint_fga = opp_rim_a + opp_paint_a
+
+            opp_mr_m = int(safe_tot(opp_totals, "MR(M)"))
+            opp_mr_a = int(safe_tot(opp_totals, "MR(A)"))
+            opp_c3_m = int(safe_tot(opp_totals, "C3(M)"))
+            opp_c3_a = int(safe_tot(opp_totals, "C3(A)"))
+            opp_atb3_m = int(safe_tot(opp_totals, "ATB3(M)"))
+            opp_atb3_a = int(safe_tot(opp_totals, "ATB3(A)"))
+            opp_nopaint_pts = opp_mr_m * 2 + opp_c3_m * 3 + opp_atb3_m * 3
+            opp_nopaint_fga = opp_mr_a + opp_c3_a + opp_atb3_a
+
+            opp_fg_pts = opp_paint_pts + opp_nopaint_pts
+            if opp_pts == 0:
+                opp_pts = opp_fg_pts + opp_ftm
+
+            # 🛡️ Fallback de seguretat (si un partit antic NO té la fila OPPONENT)
+            if opp_fga == 0:
+                opp_rim_m = int(safe_col_sum(comp_lineups, "Rim_FGM_Agn"))
+                opp_rim_a = int(safe_col_sum(comp_lineups, "Rim_FGA_Agn"))
+                opp_paint_m = int(safe_col_sum(comp_lineups, "Paint_FGM_Agn"))
+                opp_paint_a = int(safe_col_sum(comp_lineups, "Paint_FGA_Agn"))
+                opp_mr_m = int(safe_col_sum(comp_lineups, "MR_FGM_Agn"))
+                opp_mr_a = int(safe_col_sum(comp_lineups, "MR_FGA_Agn"))
+                opp_c3_m = int(safe_col_sum(comp_lineups, "Cor3_FGM_Agn"))
+                opp_c3_a = int(safe_col_sum(comp_lineups, "Cor3_FGA_Agn"))
+                opp_atb3_m = int(safe_col_sum(comp_lineups, "ATB3_FGM_Agn"))
+                opp_atb3_a = int(safe_col_sum(comp_lineups, "ATB3_FGA_Agn"))
+
+                opp_2pm = opp_rim_m + opp_paint_m + opp_mr_m
+                opp_2pa = opp_rim_a + opp_paint_a + opp_mr_a
+                opp_3pm = opp_c3_m + opp_atb3_m
+                opp_3pa = opp_c3_a + opp_atb3_a
+                opp_fgm = opp_2pm + opp_3pm
+                opp_fga = opp_2pa + opp_3pa
+
+                opp_ftm = int(safe_col_sum(comp_lineups, "FTM_Agn"))
+                opp_fta = int(safe_col_sum(comp_lineups, "FTA_Agn"))
+                opp_oreb = int(safe_col_sum(comp_lineups, "OREB_Agn"))
+                opp_dreb = int(safe_col_sum(comp_lineups, "DREB_Agn"))
+                opp_tov = int(safe_col_sum(comp_lineups, "TOV_Agn"))
+
+                opp_paint_pts = (opp_rim_m + opp_paint_m) * 2
+                opp_paint_fga = opp_rim_a + opp_paint_a
+                opp_nopaint_pts = opp_mr_m * 2 + opp_c3_m * 3 + opp_atb3_m * 3
+                opp_nopaint_fga = opp_mr_a + opp_c3_a + opp_atb3_a
+                opp_fg_pts = opp_paint_pts + opp_nopaint_pts
+                opp_pts = safe_col_sum(comp_lineups, "PTS_Agn")
+                if opp_pts == 0:
+                    opp_pts = opp_fg_pts + opp_ftm
 
             # 3. CÀLCULS MATEMÀTICS DELS 4 FACTORS (Dean Oliver)
             efg_team = adv_dict_team.get(
