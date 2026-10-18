@@ -1024,7 +1024,7 @@ if view_mode == "Partit Individual":
                     .sum()
                 )
 
-            # 2. SUMATORIS REALS DEL RIVAL
+            # 2. SUMATORIS REALS DEL RIVAL (Amb rescat automàtic des del Play-by-Play)
             s_opp_rim_m = float(
                 pd.to_numeric(g_line_m["Rim_FGM_Agn"], errors="coerce")
                 .fillna(0)
@@ -1081,8 +1081,6 @@ if view_mode == "Partit Individual":
             s_opp_3pm = s_opp_c3_m + s_opp_atb3_m
             s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
             s_opp_fgm = s_opp_2pm + s_opp_3pm
-
-            s_opp_fgm = s_opp_2pm + s_opp_3pm
             s_opp_fga = s_opp_2pa + s_opp_3pa
 
             s_opp_ftm = float(
@@ -1091,16 +1089,6 @@ if view_mode == "Partit Individual":
             s_opp_fta = float(
                 pd.to_numeric(g_line_m["FTA_Agn"], errors="coerce").fillna(0).sum()
             )
-
-            # Si a quintets estan a 0, agafem els tirs lliures del Play-by-Play
-            if s_opp_fta == 0.0 and not pbp_df.empty:
-                p_m_ft = pbp_df[pbp_df["game_id"].astype(str) == str(selected_game_id)]
-                if not p_m_ft.empty:
-                    o_ft_score = float(p_m_ft["Action"].astype(str).str.contains("Opponent FT Score", case=False).sum())
-                    o_ft_miss = float(p_m_ft["Action"].astype(str).str.contains("Opponent FT Miss", case=False).sum())
-                    if (o_ft_score + o_ft_miss) > 0:
-                        s_opp_ftm = o_ft_score
-                        s_opp_fta = o_ft_score + o_ft_miss
             s_opp_oreb = float(
                 pd.to_numeric(g_line_m["OREB_Agn"], errors="coerce")
                 .fillna(0)
@@ -1117,6 +1105,104 @@ if view_mode == "Partit Individual":
                 .sum()
             )
 
+            # 🛡️ AUTO-RECUPERACIÓ DELS TIRS DEL RIVAL DES DEL PLAY-BY-PLAY SI A QUINTETS DONEN 0
+            if s_opp_fga == 0.0 and not pbp_df.empty:
+                p_match = pbp_df[
+                    pbp_df["game_id"].astype(str) == str(selected_game_id)
+                ]
+                if not p_match.empty:
+                    opp_shots = p_match[
+                        p_match["Action"]
+                        .astype(str)
+                        .str.contains("Opponent.*Shot", case=False, regex=True)
+                    ]
+
+                    s_opp_rim_m = float(
+                        (
+                            opp_shots["Action"].str.contains("RIM", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_rim_a = float(
+                        opp_shots["Action"]
+                        .str.contains("RIM", case=False)
+                        .sum()
+                    )
+                    s_opp_paint_m = float(
+                        (
+                            opp_shots["Action"].str.contains(
+                                "PAINT", case=False
+                            )
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_paint_a = float(
+                        opp_shots["Action"]
+                        .str.contains("PAINT", case=False)
+                        .sum()
+                    )
+                    s_opp_mr_m = float(
+                        (
+                            opp_shots["Action"].str.contains("MR", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_mr_a = float(
+                        opp_shots["Action"].str.contains("MR", case=False).sum()
+                    )
+                    s_opp_c3_m = float(
+                        (
+                            opp_shots["Action"].str.contains("C3", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_c3_a = float(
+                        opp_shots["Action"].str.contains("C3", case=False).sum()
+                    )
+                    s_opp_atb3_m = float(
+                        (
+                            opp_shots["Action"].str.contains(
+                                "ATB3", case=False
+                            )
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_atb3_a = float(
+                        opp_shots["Action"]
+                        .str.contains("ATB3", case=False)
+                        .sum()
+                    )
+
+                    s_opp_2pm = s_opp_rim_m + s_opp_paint_m + s_opp_mr_m
+                    s_opp_2pa = s_opp_rim_a + s_opp_paint_a + s_opp_mr_a
+                    s_opp_3pm = s_opp_c3_m + s_opp_atb3_m
+                    s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
+                    s_opp_fgm = s_opp_2pm + s_opp_3pm
+                    s_opp_fga = s_opp_2pa + s_opp_3pa
+
+            # Rescat automàtic de tirs lliures del rival si estan a 0
+            if s_opp_fta == 0.0 and not pbp_df.empty:
+                p_match = pbp_df[
+                    pbp_df["game_id"].astype(str) == str(selected_game_id)
+                ]
+                if not p_match.empty:
+                    o_ft_m = float(
+                        p_match["Action"]
+                        .astype(str)
+                        .str.contains("Opponent FT Score", case=False)
+                        .sum()
+                    )
+                    o_ft_miss = float(
+                        p_match["Action"]
+                        .astype(str)
+                        .str.contains("Opponent FT Miss", case=False)
+                        .sum()
+                    )
+                    if (o_ft_m + o_ft_miss) > 0:
+                        s_opp_ftm = o_ft_m
+                        s_opp_fta = o_ft_m + o_ft_miss
+
+            # Càlcul de punts per zones del rival
             s_opp_paint_pts = (s_opp_rim_m + s_opp_paint_m) * 2.0
             s_opp_paint_fga = s_opp_rim_a + s_opp_paint_a
             s_opp_nopaint_pts = (
