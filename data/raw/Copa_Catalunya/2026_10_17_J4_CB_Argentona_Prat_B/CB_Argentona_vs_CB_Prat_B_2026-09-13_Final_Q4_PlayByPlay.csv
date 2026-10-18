@@ -1,0 +1,366 @@
+Game Date: 2026-09-13,Our Team: CB Argentona,Opponent: CB Prat B
+Game Date: 2026-09-13,Our Team: CB Argentona,Opponent: CB Prat B,,,,,,,,,,
+Period,Game Clock,Timestamp,Slot,Player,Possession State,Action,Zone,Result,Duration(s),Paint Touch,Fastbreak,Crunch Time
+Q1,10:00,17:54:32,1,#6,defense,Substitution,None,Slot 1: Out #6 / In #15,0,No,No,No
+Q1,10:00,17:54:42,3,#7,defense,Substitution,None,Slot 3: Out #7 / In #32,0,No,No,No
+Q1,10:00,17:54:45,4,#9,defense,Substitution,None,Slot 4: Out #9 / In #16,0,No,No,No
+Q1,09:44,18:00:01,3,#32,offense,C3 Shot,C3,Miss,15,No,No,No
+Q1,09:44,18:00:02,Team,Team,offense,Opponent Def Rebound,None,Loss,15.9,No,No,No
+Q1,09:30,18:00:15,2,#8,defense,Steal,None,Success,13.2,No,No,No
+Q1,09:20,18:00:30,1,#15,offense,Opponent Foul,None,Success,9.9,No,No,No
+Q1,09:20,18:00:41,1,#15,offense,FT,None,Miss,9.9,No,No,No
+Q1,09:20,18:00:52,1,#15,offense,FT,None,Make,9.9,No,No,No
+Q1,09:02,18:01:14,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,18.3,No,No,No
+Q1,09:01,18:01:15,Team,Team,defense,Opponent Off Reb,None,Loss,19.5,No,No,No
+Q1,08:55,18:01:32,2,#8,defense,Personal Foul,None,Foul #1,10,No,No,No
+Q1,08:55,18:01:37,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q1,08:55,18:01:51,Team,Team,defense,Opponent FT Miss,None,Loss,10,No,No,No
+Q1,08:55,18:01:53,3,#32,defense,Def Rebound,None,Success,10,No,No,No
+Q1,08:43,18:02:20,5,#11,offense,Opponent Foul,None,Success,0,No,No,No
+Q1,08:31,18:02:46,5,#11,offense,C3 Shot,C3,Miss,0,No,Yes,No
+Q1,08:31,18:02:47,Team,Team,offense,Opponent Def Rebound,None,Loss,0,No,No,No
+Q1,08:09,18:03:10,1,#15,defense,Deflection,None,Success,22.2,No,No,No
+Q1,08:07,18:03:12,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,23.5,No,No,No
+Q1,08:07,18:03:14,Team,Team,defense,Opponent Off Reb,None,Loss,0,No,No,No
+Q1,08:07,18:03:24,3,#32,defense,Personal Foul,None,Foul #1,10,No,No,No
+Q1,08:07,18:03:32,Team,Team,defense,Opponent FT Miss,None,Loss,10,No,No,No
+Q1,08:07,18:03:44,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q1,07:54,18:04:02,3,#32,offense,Turnover (Dead),None,Loss,13.2,No,No,No
+Q1,07:45,18:04:16,Team,Team,defense,Opponent RIM Shot,RIM,Make,8.2,Yes,No,No
+Q1,07:21,18:04:49,2,#8,offense,RIM Shot,RIM,Make,0,Yes,No,No
+Q1,07:21,18:04:49,2,#8,offense,Opponent Foul,None,And-One,0,No,No,No
+Q1,07:21,18:04:53,2,#8,offense,FT,None,Make,0,No,No,No
+Q1,07:20,18:05:10,5,#11,defense,Deflection,None,Success,1.1,No,No,No
+Q1,07:16,18:05:15,Team,Team,defense,Opponent MR Shot,MR,Make,5.6,No,No,No
+Q1,06:58,18:05:38,2,#8,offense,ATB3 Shot,ATB3,Miss,17.5,No,No,No
+Q1,06:57,18:05:40,Team,Team,offense,Opponent Def Rebound,None,Loss,18.6,No,No,No
+Q1,06:34,18:06:03,Team,Team,defense,Opponent PAINT Shot,PAINT,Miss,22.8,Yes,No,No
+Q1,06:33,18:06:06,5,#11,defense,Def Rebound,None,Success,0,No,No,No
+Q1,06:22,18:06:21,5,#11,offense,ATB3 Shot,ATB3,Miss,11,No,No,No
+Q1,06:21,18:06:23,2,#8,offense,Off Rebound,None,Success,12.5,No,No,No
+Q1,06:18,18:06:25,2,#8,offense,RIM Shot,RIM,Miss,12.4,Yes,No,No
+Q1,06:18,18:06:26,Team,Team,offense,Opponent Def Rebound,None,Loss,12.8,No,No,No
+Q1,05:59,18:06:49,Team,Team,defense,Opponent RIM Shot,RIM,Miss,17,Yes,No,No
+Q1,05:59,18:06:56,3,#32,offense,Substitution,None,Slot 3: Out #32 / In #6,0,No,No,No
+Q1,05:48,18:07:17,1,#15,offense,Turnover (Dead),None,Loss,12.4,No,No,No
+Q1,05:48,18:07:43,2,#8,defense,Personal Foul,None,Foul #2,0,No,No,No
+Q1,05:48,18:07:52,Team,Team,defense,Opponent MR Shot,MR,Miss,0,No,No,No
+Q1,05:48,18:07:54,5,#11,defense,Def Rebound,None,Success,0,No,No,No
+Q1,05:37,18:08:05,2,#8,offense,ATB3 Shot,ATB3,Miss,11.4,No,No,No
+Q1,05:36,18:08:06,Team,Team,offense,Opponent Def Rebound,None,Loss,12.2,No,No,No
+Q1,05:20,18:08:24,Team,Team,defense,Opponent MR Shot,MR,Miss,16.7,No,No,No
+Q1,05:17,18:08:26,2,#8,defense,Def Rebound,None,Success,19.3,No,No,No
+Q1,05:15,18:08:40,2,#8,offense,ATB3 Shot,ATB3,Miss,14,No,No,No
+Q1,05:15,18:08:41,Team,Team,offense,Opponent Def Rebound,None,Loss,14.5,No,No,No
+Q1,04:57,18:08:59,2,#8,offense,Substitution,None,Slot 2: Out #8 / In #9,19.8,No,No,No
+Q1,04:57,18:09:06,5,#11,offense,Substitution,None,Slot 5: Out #11 / In #13,19.8,No,No,No
+Q1,04:57,18:09:32,Team,Team,defense,Opponent RIM Shot,RIM,Make,0.6,Yes,Yes,No
+Q1,04:15,18:10:07,5,#13,offense,Assist,None,To ##16,0,No,No,No
+Q1,04:15,18:10:07,4,#16,offense,MR Shot,MR,Make,0,No,No,No
+Q1,04:13,18:10:13,Team,Team,defense,Opponent PAINT Shot,PAINT,Miss,2.4,Yes,No,No
+Q1,04:07,18:10:19,Team,Team,defense,Opponent RIM Shot,RIM,Miss,8.6,Yes,No,No
+Q1,03:56,18:10:30,4,#16,offense,RIM Shot,RIM,Miss,2.3,Yes,No,No
+Q1,03:56,18:10:31,Team,Team,offense,Opponent Def Rebound,None,Loss,3.2,No,No,No
+Q1,03:43,18:10:45,Team,Team,defense,Opponent Turnover,None,Unforced,12.1,No,No,No
+Q1,03:43,18:10:48,1,#15,offense,Substitution,None,Slot 1: Out #15 / In #23,0,No,No,No
+Q1,03:24,18:11:11,2,#9,offense,MR Shot,MR,Miss,19,No,No,No
+Q1,03:24,18:11:12,Team,Team,offense,Opponent Def Rebound,None,Loss,19.5,No,No,No
+Q1,03:14,18:11:22,4,#16,defense,Deflection,None,Success,10.1,No,No,No
+Q1,03:07,18:11:29,3,#6,defense,Steal,None,Success,16.7,No,No,No
+Q1,03:05,18:11:31,3,#6,offense,Turnover (Dead),None,Loss,2.1,No,No,No
+Q1,03:05,18:11:44,3,#6,defense,Personal Foul,None,Foul #1,0,No,No,No
+Q1,03:05,18:11:50,Team,Team,defense,Opponent FT Score,None,Loss,0,No,No,No
+Q1,03:05,18:12:03,Team,Team,defense,Opponent FT Miss,None,Loss,0,No,No,No
+Q1,03:05,18:12:05,5,#13,defense,Def Rebound,None,Success,0,No,No,No
+Q1,02:48,18:12:23,2,#9,offense,Turnover (Live),None,Loss,17.1,No,No,No
+Q1,02:47,18:12:24,Team,Team,defense,Opponent RIM Shot,RIM,Make,1.4,Yes,Yes,No
+Q1,02:32,18:12:45,Team,Team,offense,Timeout,None,CB Argentona,14.6,No,No,No
+Q1,02:23,18:14:34,2,#9,offense,Turnover (Live),None,Loss,0,No,No,No
+Q1,02:08,18:14:49,Team,Team,defense,Opponent RIM Shot,RIM,Make,14.4,Yes,No,No
+Q1,01:48,18:15:15,2,#9,offense,MR Shot,MR,Make,20.1,No,No,No
+Q1,01:40,18:15:27,Team,Team,defense,Opponent PAINT Shot,PAINT,Miss,8.2,Yes,No,No
+Q1,01:37,18:15:30,3,#6,defense,Def Rebound,None,Success,11.3,No,No,No
+Q1,01:23,18:15:45,3,#6,offense,PAINT Shot,PAINT,Miss,14.3,Yes,No,No
+Q1,01:22,18:15:46,Team,Team,offense,Opponent Def Rebound,None,Loss,15,No,No,No
+Q1,01:10,18:15:58,5,#13,defense,Deflection,None,Success,12,No,No,No
+Q1,01:05,18:16:03,4,#16,defense,Substitution,None,Slot 4: Out #16 / In #24,16.9,No,No,No
+Q1,00:58.6,18:16:17,Team,Team,defense,Opponent RIM Shot,RIM,Make,23.7,Yes,No,No
+Q1,00:46.8,18:16:30,4,#24,offense,ATB3 Shot,ATB3,Miss,11.8,No,No,No
+Q1,00:45.2,18:16:32,3,#6,offense,Off Rebound,None,Success,13.4,No,No,No
+Q1,00:39.0,18:16:38,1,#23,offense,PAINT Shot,PAINT,Miss,16.2,Yes,No,No
+Q1,00:37.9,18:16:39,Team,Team,offense,Opponent Def Rebound,None,Loss,17.3,No,No,No
+Q1,00:34.4,18:16:43,2,#9,defense,Deflection,None,Success,3.5,No,No,No
+Q1,00:19.1,18:16:59,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,18.8,No,No,No
+Q1,00:17.6,18:17:00,5,#13,defense,Def Rebound,None,Success,20.3,No,No,No
+Q1,00:05.9,18:17:13,2,#9,offense,ATB3 Shot,ATB3,Miss,11.7,No,No,No
+Q1,00:04.5,18:17:14,Team,Team,offense,Opponent Def Rebound,None,Loss,13.1,No,No,No
+Q2,10:00,18:17:42,Team,Team,defense,Period Change,None,Started Quarter 2,0,No,No,No
+Q2,10:00,18:19:09,4,#24,defense,Substitution,None,Slot 4: Out #24 / In #32,0,No,No,No
+Q2,09:51,18:19:19,5,#13,defense,Steal,None,Success,8.9,No,No,No
+Q2,09:35,18:19:36,3,#6,offense,MR Shot,MR,Miss,15.4,No,No,No
+Q2,09:34,18:19:37,Team,Team,offense,Opponent Def Rebound,None,Loss,16.6,No,No,No
+Q2,09:32,18:19:39,Team,Team,defense,Opponent RIM Shot,RIM,Make,2.2,Yes,Yes,No
+Q2,09:25,18:19:49,3,#6,offense,Turnover (Dead),None,Loss,6.8,No,No,No
+Q2,09:25,18:19:57,1,#23,defense,Substitution,None,Slot 1: Out #23 / In #7,0,No,No,No
+Q2,09:25,18:20:02,5,#13,defense,Substitution,None,Slot 5: Out #13 / In #35,0,No,No,No
+Q2,09:25,18:20:08,3,#6,defense,Substitution,None,Slot 3: Out #6 / In #24,0,No,No,No
+Q2,09:05,18:20:34,5,#35,defense,Personal Foul,None,Foul #1,10,No,No,No
+Q2,09:05,18:20:47,3,#32,defense,Substitution,None,Slot 3: Out #32 / In #8,10,No,No,No
+Q2,09:00,18:21:03,4,#24,defense,Deflection,None,Success,15,No,No,No
+Q2,08:59,18:21:04,1,#7,defense,Steal,None,Success,16.3,No,No,No
+Q2,08:48,18:21:28,2,#9,offense,Opponent Foul,None,Success,10,No,No,No
+Q2,08:48,18:21:41,2,#9,offense,FT,None,Make,10,No,No,No
+Q2,08:48,18:21:55,2,#9,offense,FT,None,Make,10,No,No,No
+Q2,08:30,18:22:17,Team,Team,defense,Opponent PAINT Shot,PAINT,Make,17.4,Yes,No,No
+Q2,08:17,18:22:45,1,#7,offense,Opponent Foul,None,Success,10,No,No,No
+Q2,08:10,18:22:56,2,#9,offense,ATB3 Shot,ATB3,Miss,16.5,No,No,No
+Q2,08:08,18:22:57,4,#24,offense,Off Rebound,None,Success,18.1,No,No,No
+Q2,08:02,18:23:04,5,#35,offense,Turnover (Dead),None,Loss,16.6,No,No,No
+Q2,07:38,18:23:36,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,0,No,No,No
+Q2,07:27,18:23:51,4,#24,offense,C3 Shot,C3,Miss,11.3,No,No,No
+Q2,07:24,18:23:53,5,#35,offense,Off Rebound,None,Success,13.4,No,No,No
+Q2,07:21,18:23:57,4,#24,offense,PAINT Shot,PAINT,Miss,13.7,Yes,No,No
+Q2,07:20,18:23:58,Team,Team,offense,Opponent Def Rebound,None,Loss,14.9,No,No,No
+Q2,07:17,18:24:01,Team,Team,defense,Opponent PAINT Shot,PAINT,Miss,2.9,Yes,No,No
+Q2,07:15,18:24:02,5,#35,defense,Def Rebound,None,Success,4.1,No,No,No
+Q2,07:03,18:24:18,3,#8,offense,RIM Shot,RIM,Make,12.1,Yes,Yes,No
+Q2,06:54,18:24:31,Team,Team,defense,Opponent PAINT Shot,PAINT,Make,9.5,Yes,No,No
+Q2,06:42,18:24:46,2,#9,offense,Turnover (Dead),None,Loss,11.7,No,No,No
+Q2,06:42,18:24:56,2,#9,defense,Substitution,None,Slot 2: Out #9 / In #15,0,No,No,No
+Q2,06:42,18:25:00,5,#35,defense,Substitution,None,Slot 5: Out #35 / In #16,0,No,No,No
+Q2,06:42,18:25:16,Team,Team,defense,Opponent RIM Shot,RIM,Make,0,Yes,No,No
+Q2,06:13,18:25:33,2,#15,offense,Turnover (Live),None,Loss,9.5,No,No,No
+Q2,06:06,18:25:40,Team,Team,defense,Opponent PAINT Shot,PAINT,Miss,6.6,Yes,No,No
+Q2,06:04,18:25:42,1,#7,defense,Def Rebound,None,Success,8.4,No,No,No
+Q2,05:51,18:25:56,3,#8,offense,ATB3 Shot,ATB3,Miss,13.3,No,No,No
+Q2,05:50,18:25:57,Team,Team,offense,Opponent Def Rebound,None,Loss,14,No,No,No
+Q2,05:24,18:26:27,5,#16,defense,Personal Foul,None,Foul #1,6.2,No,No,No
+Q2,05:24,18:26:37,1,#7,defense,Substitution,None,Slot 1: Out #7 / In #11,6.2,No,No,No
+Q2,05:22,18:27:16,2,#24,offense,Turnover (Live),None,Loss,2.1,No,No,No
+Q2,05:21,18:27:17,Team,Team,defense,Opponent RIM Shot,RIM,Make,1,Yes,Yes,No
+Q2,05:01,18:28:18,Team,Team,offense,Timeout,None,CB Argentona,0,No,No,No
+Q2,05:00,18:28:43,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,0.9,No,No,No
+Q2,04:40,18:29:07,2,#24,offense,Turnover (Dead),None,Loss,19.7,No,No,No
+Q2,04:40,18:29:31,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,0,No,No,No
+Q2,04:40,18:29:32,Team,Team,defense,Opponent Off Reb,None,Loss,0,No,No,No
+Q2,04:40,18:29:40,Team,Team,defense,Opponent C3 Shot,C3,Miss,10,No,No,No
+Q2,04:40,18:29:42,Team,Team,defense,Opponent Off Reb,None,Loss,10,No,No,No
+Q2,04:40,18:29:49,Team,Team,defense,Opponent RIM Shot,RIM,Miss,10,Yes,No,No
+Q2,04:40,18:29:49,4,#16,defense,Block,None,Success,10,No,No,No
+Q2,04:40,18:29:50,Team,Team,defense,Opponent Off Reb,None,Loss,10,No,No,No
+Q2,04:40,18:29:58,Team,Team,defense,Timeout,None,CB Prat B,10,No,No,No
+Q2,04:40,18:31:44,Team,Team,defense,Opponent MR Shot,MR,Make,0,No,No,No
+Q2,04:40,18:31:46,5,#11,defense,Personal Foul,None,Foul #1,0,No,No,No
+Q2,04:40,18:31:49,Team,Team,defense,Opponent FT Miss,None,Loss,0,No,No,No
+Q2,04:20,18:32:31,Team,Team,defense,Opponent FT Score,None,Loss,0,No,No,No
+Q2,04:05,18:32:53,5,#11,offense,Opponent Foul,None,Success,10,No,No,No
+Q2,04:05,18:33:11,5,#11,offense,FT,None,Make,10,No,No,No
+Q2,04:05,18:33:21,5,#11,offense,FT,None,Make,10,No,No,No
+Q2,03:41,18:33:55,Team,Team,defense,Opponent RIM Shot,RIM,Make,0,Yes,No,No
+Q2,03:19,18:34:26,2,#24,offense,RIM Shot,RIM,Make,22.5,Yes,No,No
+Q2,03:00,18:34:48,Team,Team,defense,Opponent C3 Shot,C3,Miss,18.6,No,No,No
+Q2,02:59,18:34:49,Team,Team,defense,Opponent Off Reb,None,Loss,19.5,No,No,No
+Q2,02:58,18:34:50,Team,Team,defense,Opponent RIM Shot,RIM,Miss,11,Yes,No,No
+Q2,02:57,18:34:52,3,#8,defense,Def Rebound,None,Success,12.7,No,No,No
+Q2,02:52,18:35:33,5,#11,offense,PAINT Shot,PAINT,Miss,4.4,Yes,Yes,No
+Q2,02:52,18:35:34,4,#16,offense,Off Rebound,None,Success,4.4,No,No,No
+Q2,02:52,18:35:41,1,#15,offense,Turnover (Dead),None,Loss,10,No,No,No
+Q2,02:23,18:36:05,Team,Team,defense,Opponent RIM Shot,RIM,Make,8.9,Yes,No,No
+Q2,02:11,18:36:24,2,#24,offense,Assist,None,To ##15,12.3,Yes,No,No
+Q2,02:11,18:36:24,1,#15,offense,RIM Shot,RIM,Make,12.3,Yes,No,No
+Q2,01:59,18:36:46,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,1.9,No,No,No
+Q2,01:59,18:36:48,1,#15,defense,Def Rebound,None,Success,1.9,No,No,No
+Q2,01:33,18:37:03,1,#15,offense,Assist,None,To ##24,6.6,No,Yes,No
+Q2,01:33,18:37:03,2,#24,offense,ATB3 Shot,ATB3,Make,6.6,No,Yes,No
+Q2,01:03,18:37:19,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,9.8,No,No,No
+Q2,00:55.2,18:37:27,Team,Team,defense,Def Rebound,None,Success,17.8,No,No,No
+Q2,00:54.0,18:37:33,1,#15,defense,Personal Foul,None,Foul #1,1.7,No,No,No
+Q2,00:53.5,18:37:39,5,#11,offense,Substitution,None,Slot 5: Out #11 / In #13,1.7,No,No,No
+Q2,00:53.5,18:37:59,1,#15,offense,Turnover (Dead),None,Loss,1.7,No,No,No
+Q2,00:53.5,18:38:10,4,#16,defense,Substitution,None,Slot 4: Out #16 / In #9,0,No,No,No
+Q2,00:40.3,18:38:39,Team,Team,defense,Opponent C3 Shot,C3,Miss,13.2,No,No,No
+Q2,00:39.1,18:38:40,Team,Team,defense,Opponent Off Reb,None,Loss,14.4,No,No,No
+Q2,00:37.9,18:38:41,Team,Team,defense,Opponent RIM Shot,RIM,Make,11.2,Yes,No,No
+Q2,00:17.5,18:39:13,3,#8,offense,Opponent Foul,None,Success,10,No,No,No
+Q2,00:17.5,18:39:21,3,#8,offense,FT,None,Make,10,No,No,No
+Q2,00:17.5,18:39:31,3,#8,offense,FT,None,Make,10,No,No,No
+Q2,00:16.9,18:39:36,Team,Team,defense,Timeout,None,CB Prat B,0.6,No,No,No
+Q2,00:16.9,18:41:03,5,#13,defense,Substitution,None,Slot 5: Out #13 / In #23,0.6,No,No,No
+Q2,00:16.9,18:41:26,Team,Team,defense,Opponent MR Shot,MR,Make,0.6,No,No,No
+Q2,00:02.0,18:41:35,1,#15,offense,ATB3 Shot,ATB3,Miss,14.9,No,No,No
+Q3,10:00,18:45:30,Team,Team,offense,Period Change,None,Started Quarter 3,0,No,No,No
+Q3,10:00,18:50:31,5,#15,offense,Substitution,None,Slot 5: Out #15 / In #16,0,No,No,No
+Q3,09:42,18:52:25,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,15.9,No,No,No
+Q3,09:40,18:52:26,1,#23,defense,Def Rebound,None,Success,17.4,No,No,No
+Q3,09:38,18:52:31,3,#8,offense,Assist,None,To ##24,2.9,Yes,Yes,No
+Q3,09:38,18:52:31,4,#24,offense,RIM Shot,RIM,Make,2.9,Yes,Yes,No
+Q3,09:24,18:52:49,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,13.6,No,No,No
+Q3,09:09,18:53:07,2,#9,offense,Assist,None,To ##16,4.8,Yes,No,No
+Q3,09:09,18:53:07,5,#16,offense,RIM Shot,RIM,Make,4.8,Yes,No,No
+Q3,08:57,18:53:23,5,#16,defense,Deflection,None,Success,12.5,No,No,No
+Q3,08:45,18:53:45,Team,Team,defense,Opponent C3 Shot,C3,Miss,0,No,No,No
+Q3,08:45,18:53:46,4,#24,defense,Def Rebound,None,Success,0,No,No,No
+Q3,08:38,18:53:53,5,#16,offense,RIM Shot,RIM,Miss,7.4,Yes,Yes,No
+Q3,08:36,18:53:56,1,#23,offense,Off Rebound,None,Success,9.6,No,No,No
+Q3,08:26,18:54:25,4,#24,offense,ATB3 Shot,ATB3,Miss,19.1,No,No,No
+Q3,08:26,18:54:26,Team,Team,offense,Opponent Def Rebound,None,Loss,19.1,No,No,No
+Q3,08:12,18:54:41,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,14.6,No,No,No
+Q3,08:09,18:54:45,3,#8,defense,Def Rebound,None,Success,17.7,No,No,No
+Q3,08:05,18:54:51,3,#8,offense,Opponent Foul,None,Success,3.4,No,No,No
+Q3,07:48,18:55:25,4,#24,offense,RIM Shot,RIM,Miss,20.4,Yes,No,No
+Q3,07:47,18:55:26,Team,Team,offense,Opponent Def Rebound,None,Loss,21.3,No,No,No
+Q3,07:41,18:55:32,Team,Team,defense,Opponent RIM Shot,RIM,Make,6.2,Yes,Yes,No
+Q3,07:34,18:55:43,3,#8,offense,Turnover (Dead),None,Loss,7.6,No,No,No
+Q3,07:34,18:55:46,2,#9,defense,Steal,None,Success,0,No,No,No
+Q3,07:19,18:56:03,1,#23,offense,Assist,None,To ##9,14.4,No,Yes,No
+Q3,07:19,18:56:03,2,#9,offense,ATB3 Shot,ATB3,Make,14.4,No,Yes,No
+Q3,07:12,18:56:13,1,#23,defense,Deflection,None,Success,7.5,No,No,No
+Q3,06:59,18:56:27,1,#23,defense,Substitution,None,Slot 1: Out #23 / In #15,20.2,No,No,No
+Q3,06:51,18:56:47,Team,Team,defense,Opponent MR Shot,MR,Make,4.2,No,No,No
+Q3,06:39,18:57:02,2,#9,offense,ATB3 Shot,ATB3,Miss,12.2,No,No,No
+Q3,06:38,18:57:03,Team,Team,offense,Opponent Def Rebound,None,Loss,13.1,No,No,No
+Q3,06:29,18:57:18,4,#24,defense,Personal Foul,None,Foul #1,9.4,No,No,No
+Q3,06:29,18:57:34,Team,Team,defense,Opponent FT Score,None,Loss,9.4,No,No,No
+Q3,06:29,18:57:43,Team,Team,defense,Opponent FT Miss,None,Loss,9.4,No,No,No
+Q3,06:29,18:57:44,4,#24,defense,Def Rebound,None,Success,9.4,No,No,No
+Q3,06:13,18:58:04,2,#9,offense,Turnover (Live),None,Loss,15.2,No,No,No
+Q3,06:11,18:58:07,2,#9,defense,Personal Foul,None,Foul #1,2.1,No,No,No
+Q3,06:00,18:58:34,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,13.2,No,No,No
+Q3,05:59,18:58:35,1,#15,defense,Def Rebound,None,Success,14.5,No,No,No
+Q3,05:49,18:58:45,2,#9,offense,RIM Shot,RIM,Miss,9.4,Yes,No,No
+Q3,05:48,18:58:46,3,#8,offense,Off Rebound,None,Success,10.9,No,No,No
+Q3,05:47,18:58:50,3,#8,offense,Assist,None,To ##16,11.4,Yes,No,No
+Q3,05:47,18:58:50,5,#16,offense,RIM Shot,RIM,Make,11.4,Yes,No,No
+Q3,05:35,18:59:05,Team,Team,defense,Opponent C3 Shot,C3,Make,11.7,No,No,No
+Q3,05:28,18:59:17,1,#15,offense,RIM Shot,RIM,Make,6.8,Yes,No,No
+Q3,05:21,18:59:32,3,#8,defense,Personal Foul,None,Foul #3,7.4,No,No,No
+Q3,05:21,18:59:56,Team,Team,defense,Opponent Turnover,None,Off Foul by #1,7.4,No,No,No
+Q3,04:59,19:00:46,5,#16,offense,Opponent Foul,None,Success,10,No,No,No
+Q3,04:59,19:01:26,5,#16,offense,FT,None,Miss,10,No,No,No
+Q3,04:59,19:01:36,5,#16,offense,FT,None,Make,10,No,No,No
+Q3,04:44,19:01:54,Team,Team,defense,Opponent RIM Shot,RIM,Miss,15,Yes,No,No
+Q3,04:42,19:01:56,4,#24,defense,Def Rebound,None,Success,16.6,No,No,No
+Q3,04:35,19:02:04,1,#15,offense,Assist,None,To ##9,6.6,No,Yes,No
+Q3,04:35,19:02:04,2,#9,offense,ATB3 Shot,ATB3,Make,6.6,No,Yes,No
+Q3,04:23,19:02:20,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,12,No,No,No
+Q3,03:56,19:03:08,3,#8,offense,Assist,None,To ##16,0,Yes,No,No
+Q3,03:56,19:03:08,5,#16,offense,RIM Shot,RIM,Make,0,Yes,No,No
+Q3,03:56,19:03:10,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,0,No,No,No
+Q3,03:53,19:03:19,3,#8,offense,ATB3 Shot,ATB3,Make,3.2,No,No,No
+Q3,03:51,19:03:24,5,#16,defense,Deflection,None,Success,2.2,No,No,No
+Q3,03:41,19:03:34,Team,Team,defense,Opponent C3 Shot,C3,Miss,11.9,No,No,No
+Q3,03:40,19:03:35,4,#24,defense,Def Rebound,None,Success,13,No,No,No
+Q3,03:30,19:03:53,2,#9,offense,Turnover (Live),None,Loss,10.2,No,No,No
+Q3,03:29,19:03:54,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,1,No,Yes,No
+Q3,03:26,19:04:10,4,#24,offense,Opponent Foul,None,Success,2.6,No,No,No
+Q3,03:26,19:04:53,4,#24,offense,FT,None,Make,2.6,No,No,No
+Q3,03:26,19:05:02,4,#24,offense,FT,None,Make,2.6,No,No,No
+Q3,03:24,19:05:08,4,#24,defense,Substitution,None,Slot 4: Out #24 / In #11,2.3,No,No,No
+Q3,02:18,19:05:29,Team,Team,defense,Opponent MR Shot,MR,Miss,7.9,No,No,No
+Q3,02:18,19:05:31,2,#9,defense,Def Rebound,None,Success,7.9,No,No,No
+Q3,02:02,19:05:48,5,#16,offense,RIM Shot,RIM,Miss,15.8,Yes,No,No
+Q3,02:02,19:05:48,Team,Team,offense,Opponent Def Rebound,None,Loss,16.3,No,No,No
+Q3,01:58,19:05:57,2,#9,defense,Personal Foul,None,Foul #2,4.2,No,No,No
+Q3,01:58,19:06:14,5,#16,defense,Substitution,None,Slot 5: Out #16 / In #13,4.2,No,No,No
+Q3,01:40,19:06:46,Team,Team,defense,Opponent MR Shot,MR,Miss,21.5,No,No,No
+Q3,01:39,19:06:48,4,#11,defense,Def Rebound,None,Success,22.7,No,No,No
+Q3,01:32,19:06:55,2,#9,offense,ATB3 Shot,ATB3,Miss,7,No,Yes,No
+Q3,01:31,19:06:56,Team,Team,offense,Opponent Def Rebound,None,Loss,8.1,No,No,No
+Q3,01:18,19:07:12,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,0,No,No,No
+Q3,01:09,19:07:36,3,#8,offense,Opponent Foul,None,Success,9.5,No,No,No
+Q3,01:09,19:07:45,2,#9,offense,Substitution,None,Slot 2: Out #9 / In #6,9.5,No,No,No
+Q3,01:09,19:07:54,3,#8,offense,FT,None,Miss,9.5,No,No,No
+Q3,01:09,19:07:55,3,#8,offense,FT,None,Make,9.5,No,No,No
+Q3,00:51.1,19:08:17,Team,Team,defense,Opponent PAINT Shot,PAINT,Make,18.1,Yes,No,No
+Q3,00:43.0,19:08:28,4,#11,offense,Turnover (Live),None,Loss,8.1,No,No,No
+Q3,00:41.9,19:08:29,Team,Team,defense,Opponent RIM Shot,RIM,Make,1.1,Yes,No,No
+Q3,00:19.0,19:08:44,3,#8,offense,Turnover (Live),None,Loss,2.9,No,No,No
+Q3,00:15.4,19:08:48,Team,Team,defense,Opponent ATB3 Shot,ATB3,Make,3.6,No,No,No
+Q3,00:00.0,19:09:16,Team,Team,offense,Tècnica Banqueta (B),None,Cat 1 (1/3),15.5,No,No,No
+Q3,00:00.0,19:09:34,Team,Team,offense,Opponent FT Score,None,Loss,15.5,No,No,No
+Q4,10:00,19:11:03,Team,Team,offense,Period Change,None,Started Quarter 4,0,No,No,No
+Q4,09:51,19:12:10,3,#8,offense,Substitution,None,Slot 3: Out #8 / In #9,8.9,No,No,No
+Q4,09:45,19:12:19,2,#6,offense,MR Shot,MR,Make,14.8,No,No,No
+Q4,09:37,19:12:33,1,#15,defense,Personal Foul,None,Foul #2,8,No,No,No
+Q4,09:37,19:12:50,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,8,No,No,No
+Q4,09:37,19:12:52,1,#15,defense,Def Rebound,None,Success,8,No,No,No
+Q4,09:33,19:12:56,1,#15,offense,Turnover (Live),None,Loss,3.8,No,No,No
+Q4,09:21,19:13:09,2,#6,defense,Personal Foul,None,Foul #2,10,No,No,No
+Q4,09:21,19:13:32,Team,Team,defense,Opponent MR Shot,MR,Miss,10,No,No,No
+Q4,09:21,19:13:33,4,#11,defense,Def Rebound,None,Success,10,No,No,No
+Q4,09:08,19:13:46,3,#9,offense,ATB3 Shot,ATB3,Miss,12.8,No,No,No
+Q4,09:08,19:13:47,Team,Team,offense,Opponent Def Rebound,None,Loss,13.7,No,No,No
+Q4,08:45,19:14:05,Team,Team,defense,Opponent ATB3 Shot,ATB3,Miss,2.6,No,Yes,No
+Q4,08:45,19:14:05,Team,Team,defense,Opponent Off Reb,None,Loss,2.6,No,No,No
+Q4,08:40,19:14:15,Team,Team,defense,Opponent RIM Shot,RIM,Miss,14.6,Yes,No,No
+Q4,08:39,19:14:17,4,#11,defense,Def Rebound,None,Success,15.8,No,No,No
+Q4,08:34,19:14:24,3,#9,offense,Assist,None,To ##15,5.1,Yes,Yes,No
+Q4,08:34,19:14:24,1,#15,offense,RIM Shot,RIM,Make,5.1,Yes,Yes,No
+Q4,08:34,19:14:29,Team,Team,defense,Opponent Turnover,None,Unforced,0.2,No,No,No
+Q4,07:54,19:14:56,4,#11,offense,Turnover (Dead),None,Loss,0,No,No,No
+Q4,07:42,19:15:19,Team,Team,defense,Opponent MR Shot,MR,Make,11.9,No,No,No
+Q4,07:27,19:15:42,2,#6,offense,Opponent Foul,None,Success,10,No,No,No
+Q4,07:17,19:15:57,1,#15,offense,Substitution,None,Slot 1: Out #15 / In #7,10,No,No,No
+Q4,07:17,19:16:04,2,#6,offense,FT,None,Make,10,No,No,No
+Q4,07:17,19:16:17,2,#6,offense,FT,None,Make,10,No,No,No
+Q4,07:17,19:16:30,2,#6,offense,FT,None,Make,10,No,No,No
+Q4,07:12,19:16:40,2,#6,defense,Personal Foul,None,Foul #3,5.3,No,No,No
+Q4,07:00,19:17:40,1,#7,defense,Personal Foul,None,Foul #1,10,No,No,No
+Q4,07:00,19:18:01,Team,Team,defense,Opponent FT Miss,None,Loss,10,No,No,No
+Q4,07:00,19:18:12,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q4,06:55,19:18:20,5,#13,offense,Substitution,None,Slot 5: Out #13 / In #35,5.2,No,No,No
+Q4,06:41,19:19:03,3,#9,offense,Opponent Foul,None,Success,10,No,No,No
+Q4,06:27,19:19:24,5,#35,offense,Turnover (Dead),None,Loss,23.5,No,No,No
+Q4,06:09,19:19:46,3,#9,defense,Steal,None,Success,17.9,No,No,No
+Q4,06:05,19:19:54,4,#11,offense,Opponent Foul,None,Success,4.6,No,No,No
+Q4,06:05,19:20:16,4,#11,offense,FT,None,Make,4.6,No,No,No
+Q4,06:05,19:20:30,4,#11,offense,FT,None,Make,4.6,No,No,No
+Q4,05:52,19:20:46,Team,Team,defense,Opponent RIM Shot,RIM,Miss,13,Yes,No,No
+Q4,05:50,19:20:48,4,#11,defense,Def Rebound,None,Success,14.5,No,No,No
+Q4,05:44,19:20:57,3,#9,offense,RIM Shot,RIM,Make,6.6,Yes,Yes,No
+Q4,05:33,19:21:20,2,#6,defense,Personal Foul,None,Foul #4,10,No,No,No
+Q4,05:33,19:21:45,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q4,05:33,19:21:58,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q4,05:33,19:22:00,2,#6,offense,Substitution,None,Slot 2: Out #6 / In #23,0,No,No,No
+Q4,05:10,19:22:30,3,#9,offense,RIM Shot,RIM,Miss,22.6,Yes,No,No
+Q4,05:10,19:22:30,Team,Team,offense,Opponent Block,None,Success,22.6,Yes,No,No
+Q4,05:09,19:22:35,Team,Team,offense,Off Rebound,None,Success,0,No,No,No
+Q4,05:09,19:23:02,3,#9,offense,Opponent Foul,None,Success,10,No,No,No
+Q4,04:57,19:23:26,3,#9,offense,Assist,None,To ##35,21.4,Yes,No,No
+Q4,04:57,19:23:26,5,#35,offense,RIM Shot,RIM,Make,21.4,Yes,No,No
+Q4,04:46,19:23:51,Team,Team,defense,Opponent Turnover,None,Unforced,1.6,No,No,No
+Q4,04:26,19:25:12,Team,Team,offense,Timeout,None,CB Prat B,0,No,No,No
+Q4,04:11,19:38:10,3,#9,offense,RIM Shot,RIM,Miss,14.6,Yes,No,No
+Q4,04:11,19:38:10,Team,Team,offense,Opponent Block,None,Success,14.6,Yes,No,No
+Q4,04:10,19:38:11,Team,Team,offense,Opponent Def Rebound,None,Loss,15.4,No,No,No
+Q4,03:52,19:38:30,Team,Team,defense,Opponent RIM Shot,RIM,Make,18.4,Yes,No,No
+Q4,03:32,19:38:55,5,#35,offense,Assist,None,To ##11,19.7,Yes,No,No
+Q4,03:32,19:38:55,4,#11,offense,RIM Shot,RIM,Make,19.7,Yes,No,No
+Q4,03:17,19:39:14,Team,Team,defense,Opponent MR Shot,MR,Miss,15,No,No,No
+Q4,03:16,19:39:15,5,#35,defense,Def Rebound,None,Success,16.2,No,No,No
+Q4,03:03,19:39:32,4,#11,offense,Opponent Foul,None,Success,10,No,No,No
+Q4,03:03,19:39:55,5,#35,offense,Substitution,None,Slot 5: Out #35 / In #16,10,No,No,No
+Q4,03:03,19:39:59,3,#9,offense,Substitution,None,Slot 3: Out #9 / In #24,10,No,No,No
+Q4,03:03,19:40:06,1,#7,offense,Substitution,None,Slot 1: Out #7 / In #8,10,No,No,No
+Q4,03:03,19:40:09,4,#11,offense,FT,None,Make,10,No,No,No
+Q4,03:03,19:40:10,4,#11,offense,FT,None,Make,10,No,No,No
+Q4,02:50,19:40:25,Team,Team,defense,Opponent RIM Shot,RIM,Make,13.2,Yes,No,No
+Q4,02:34,19:40:44,3,#24,offense,Turnover (Dead),None,Loss,15.6,No,No,No
+Q4,02:34,19:40:52,4,#11,defense,Substitution,None,Slot 4: Out #11 / In #32,0,No,No,No
+Q4,02:25,19:41:15,Team,Team,defense,Opponent C3 Shot,C3,Miss,9.2,No,No,No
+Q4,02:23,19:41:16,3,#24,defense,Def Rebound,None,Success,10.6,No,No,No
+Q4,02:17,19:41:23,1,#23,offense,Turnover (Live),None,Loss,6.3,No,No,No
+Q4,01:59,19:41:45,Team,Team,defense,Opponent Turnover,None,Unforced,17.9,No,No,No
+Q4,01:49,19:42:03,2,#8,offense,Turnover (Live),None,Loss,10.4,No,No,No
+Q4,01:38,19:42:18,5,#16,defense,Personal Foul,None,Foul #2,10,No,No,No
+Q4,01:38,19:42:32,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q4,01:38,19:42:54,Team,Team,defense,Opponent FT Score,None,Loss,10,No,No,No
+Q4,01:36,19:42:59,2,#8,offense,Turnover (Live),None,Loss,2.2,No,No,No
+Q4,01:29,19:43:06,Team,Team,defense,Opponent RIM Shot,RIM,Miss,6.7,Yes,No,No
+Q4,01:27,19:43:08,Team,Team,defense,Def Rebound,None,Success,8.8,No,No,No
+Q4,01:02,19:43:34,1,#23,offense,ATB3 Shot,ATB3,Miss,15.2,No,No,No
+Q4,01:01,19:43:35,3,#24,offense,Off Rebound,None,Success,16.4,No,No,No
+Q4,01:00,19:43:41,3,#24,offense,RIM Shot,RIM,Make,10.7,Yes,No,No
+Q4,00:51.6,19:43:54,Team,Team,defense,Opponent RIM Shot,RIM,Make,9,Yes,No,No
+Q4,00:37.4,19:44:12,3,#24,offense,ATB3 Shot,ATB3,Miss,14.2,No,No,No
+Q4,00:36.5,19:44:13,Team,Team,offense,Opponent Def Rebound,None,Loss,15.1,No,No,No
