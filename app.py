@@ -227,7 +227,7 @@ def get_cached_data():
         CACHE_DIR / "all_boxscores.parquet",
         CACHE_DIR / "all_lineups.parquet",
         CACHE_DIR / "all_advanced.parquet",
-        CACHE_DIR / "all_pbp.parquet",  # 5è fitxer
+        CACHE_DIR / "all_pbp.parquet",
     ]
     if not all(f.exists() for f in required_files):
         return rebuild_cache()
@@ -237,14 +237,19 @@ def get_cached_data():
         box = pd.read_parquet(CACHE_DIR / "all_boxscores.parquet")
         lineups = pd.read_parquet(CACHE_DIR / "all_lineups.parquet")
         adv = pd.read_parquet(CACHE_DIR / "all_advanced.parquet")
-        pbp = pd.read_parquet(CACHE_DIR / "all_pbp.parquet")  # Carregar pbp
-        return games, box, lineups, adv, pbp  # Retornar els 5
+        pbp = pd.read_parquet(CACHE_DIR / "all_pbp.parquet")
+
+        # Si a qualsevol taula li falta game_id, regenerem el caché automàticament
+        for df_item in [games, box, lineups, adv, pbp]:
+            if not df_item.empty and "game_id" not in df_item.columns:
+                return rebuild_cache()
+
+        return games, box, lineups, adv, pbp
     except Exception:
         return rebuild_cache()
 
 
 # Desempaquetem exactament els 5 DataFrames:
-games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
 games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
 
 # 🛡️ PROTECCIÓ UNIVERSAL DE CACHÉ ANTIGA
