@@ -245,6 +245,12 @@ def get_cached_data():
 
 # Desempaquetem exactament els 5 DataFrames:
 games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
+games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
+
+# 🛡️ PROTECCIÓ UNIVERSAL DE CACHÉ ANTIGA
+for df_obj in [games_df, box_df, lineups_df, adv_df, pbp_df]:
+    if not df_obj.empty and "game_id" not in df_obj.columns:
+        df_obj["game_id"] = ""
 # Filtre de seguretat: assegurar que box_df només té jugadors individuals
 if not box_df.empty and "Player" in box_df.columns:
     p_up = box_df["Player"].astype(str).str.upper().str.strip()
