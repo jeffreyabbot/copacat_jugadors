@@ -1082,7 +1082,9 @@ if view_mode == "Partit Individual":
             s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
             s_opp_fgm = s_opp_2pm + s_opp_3pm
             s_opp_fga = s_opp_2pa + s_opp_3pa
-            # 🛡️ AUTO-RECUPERACIÓ: Si a quintets el rival surt a 0 tirs, els traiem del Play-by-Play
+            # 🛡️ AUTO-RECUPERACIÓ DEL RIVAL DES DEL PLAY-BY-PLAY
+
+            # 1. Recuperar TIRS DE CAMP del rival si estan a 0
             if s_opp_fga == 0.0 and not pbp_df.empty:
                 p_match = pbp_df[
                     pbp_df["game_id"].astype(str) == str(selected_game_id)
@@ -1161,25 +1163,36 @@ if view_mode == "Partit Individual":
                     s_opp_fgm = s_opp_2pm + s_opp_3pm
                     s_opp_fga = s_opp_2pa + s_opp_3pa
 
-                    s_opp_ftm = float(
+            # 2. Recuperar TIRS LLIURES del rival si estan a 0 (independentment dels tirs de camp)
+            if s_opp_fta == 0.0 and not pbp_df.empty:
+                p_match = pbp_df[
+                    pbp_df["game_id"].astype(str) == str(selected_game_id)
+                ]
+                if not p_match.empty:
+                    opp_ft_m = float(
                         (
                             p_match["Action"]
                             .astype(str)
                             .str.contains("Opponent FT Score", case=False)
                         ).sum()
                     )
-                    s_opp_ft_miss = float(
+                    opp_ft_miss = float(
                         (
                             p_match["Action"]
                             .astype(str)
                             .str.contains("Opponent FT Miss", case=False)
                         ).sum()
                     )
-                    s_opp_fta = s_opp_ftm + s_opp_ft_miss
-
-            s_opp_ftm = float(
-                pd.to_numeric(g_line_m["FTM_Agn"], errors="coerce").fillna(0).sum()
-            )
+                    if (opp_ft_m + opp_ft_miss) > 0:
+                        s_opp_ftm = opp_ft_m
+                        s_opp_fta = opp_ft_m + opp_ft_miss
+                    elif s_opp_pts > (s_opp_2pm * 2 + s_opp_3pm * 3):
+                        # Diferencial directe de punts si no estan tipificats
+                        s_opp_ftm = float(
+                            s_opp_pts - (s_opp_2pm * 2 + s_opp_3pm * 3)
+                        )
+                        s_opp_fta = s_opp_ftm
+                        
             s_opp_fta = float(
                 pd.to_numeric(g_line_m["FTA_Agn"], errors="coerce").fillna(0).sum()
             )
