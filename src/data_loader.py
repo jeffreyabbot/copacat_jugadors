@@ -284,7 +284,12 @@ def parse_pbp(file_path: Path, game_id: str) -> pd.DataFrame:
 def rebuild_cache():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
+    # 🛡️ SOLUCIÓ WINDOWS: Esborrar els parquet antics abans de gravar per evitar bloquejos
+    for p_file in CACHE_DIR.glob("*.parquet"):
+        try:
+            os.remove(p_file)
+        except Exception:
+            pass
     games_meta = []
     adv_list = []
     box_list = []
