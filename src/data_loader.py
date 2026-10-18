@@ -216,55 +216,18 @@ def parse_boxscore(file_path: Path, game_id: str) -> pd.DataFrame:
         print(f"Avis Boxscore a {file_path.name}: {e}")
         return pd.DataFrame()
 
-# src/data_loader.py
-import csv
-
-
 def parse_lineups(file_path: Path, game_id: str) -> pd.DataFrame:
-    """Llegeix el fitxer de quintets reparant automàticament files amb columnes que falten o sobren."""
     try:
-        header_idx, sep = detect_file_sep_and_header(
-            file_path, ["competition", "competicio", "competición", "lineup"]
-        )
+        header_idx, sep = detect_file_sep_and_header(file_path, "competition")
+        if header_idx == 0:
+            h_alt, s_alt = detect_file_sep_and_header(file_path, "lineup")
+            if h_alt > 0:
+                header_idx, sep = h_alt, s_alt
 
-        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
-            raw_lines = [l.rstrip("\r\n") for l in f if l.strip()]
+        df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
+        df = df.dropna(how="all").copy()
+        df.columns = [str(c).strip() for c in df.columns]  # 👈 NETEJA ESPAIS INVISIBLES
 
-        if header_idx >= len(raw_lines):
-            return pd.DataFrame()
-
-        # 1. Llegir la capçalera oficial i comptar quantes columnes té
-        header_line = raw_lines[header_idx]
-        header = list(csv.reader([header_line], delimiter=sep))[0]
-        num_cols = len(header)
-
-        # 2. Reparar cada fila de dades de forma automàtica
-        data_rows = []
-        for line in raw_lines[header_idx + 1 :]:
-            parsed = list(csv.reader([line], delimiter=sep))
-            if not parsed or not parsed[0]:
-                continue
-            row = parsed[0]
-
-            # Eliminar comes buides extres al final (com a la línia 14)
-            while len(row) > num_cols and row[-1] == "":
-                row.pop()
-
-            # Si falten columnes abans del Rival (com a les línies 7, 11, 20), omplir amb '0'
-            if len(row) < num_cols:
-                missing = num_cols - len(row)
-                rival_val = row.pop() if row else "Rival"
-                row.extend(["0"] * missing)
-                row.append(rival_val)
-            elif len(row) > num_cols:
-                row = row[:num_cols]
-
-            data_rows.append(row)
-
-        df = pd.DataFrame(data_rows, columns=header)
-        df.columns = [str(c).strip() for c in df.columns]
-
-        # 3. Netejar tipus de dades
         text_cols = [
             "Competition",
             "Week",
@@ -278,6 +241,13 @@ def parse_lineups(file_path: Path, game_id: str) -> pd.DataFrame:
             "Lineup",
             "Rival",
             "game_id",
+            "MIN",
+            "Min",
+            "min",
+            "Duration",
+            "Duration(s)",
+            "Time",
+            "Seconds",
         ]
         for col in df.columns:
             if col in text_cols:
@@ -290,6 +260,7 @@ def parse_lineups(file_path: Path, game_id: str) -> pd.DataFrame:
     except Exception as e:
         print(f"Avis Lineups a {file_path.name}: {e}")
         return pd.DataFrame()
+
 
 def parse_pbp(file_path: Path, game_id: str) -> pd.DataFrame:
     try:
