@@ -1082,6 +1082,100 @@ if view_mode == "Partit Individual":
             s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
             s_opp_fgm = s_opp_2pm + s_opp_3pm
             s_opp_fga = s_opp_2pa + s_opp_3pa
+            # 🛡️ AUTO-RECUPERACIÓ: Si a quintets el rival surt a 0 tirs, els traiem del Play-by-Play
+            if s_opp_fga == 0.0 and not pbp_df.empty:
+                p_match = pbp_df[
+                    pbp_df["game_id"].astype(str) == str(selected_game_id)
+                ]
+                if not p_match.empty:
+                    opp_shots = p_match[
+                        p_match["Action"]
+                        .astype(str)
+                        .str.contains("Opponent.*Shot", case=False, regex=True)
+                    ]
+
+                    s_opp_rim_m = float(
+                        (
+                            opp_shots["Action"].str.contains("RIM", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_rim_a = float(
+                        opp_shots["Action"]
+                        .str.contains("RIM", case=False)
+                        .sum()
+                    )
+
+                    s_opp_paint_m = float(
+                        (
+                            opp_shots["Action"].str.contains(
+                                "PAINT", case=False
+                            )
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_paint_a = float(
+                        opp_shots["Action"]
+                        .str.contains("PAINT", case=False)
+                        .sum()
+                    )
+
+                    s_opp_mr_m = float(
+                        (
+                            opp_shots["Action"].str.contains("MR", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_mr_a = float(
+                        opp_shots["Action"].str.contains("MR", case=False).sum()
+                    )
+
+                    s_opp_c3_m = float(
+                        (
+                            opp_shots["Action"].str.contains("C3", case=False)
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_c3_a = float(
+                        opp_shots["Action"].str.contains("C3", case=False).sum()
+                    )
+
+                    s_opp_atb3_m = float(
+                        (
+                            opp_shots["Action"].str.contains(
+                                "ATB3", case=False
+                            )
+                            & (opp_shots["Result"].str.lower() == "make")
+                        ).sum()
+                    )
+                    s_opp_atb3_a = float(
+                        opp_shots["Action"]
+                        .str.contains("ATB3", case=False)
+                        .sum()
+                    )
+
+                    s_opp_2pm = s_opp_rim_m + s_opp_paint_m + s_opp_mr_m
+                    s_opp_2pa = s_opp_rim_a + s_opp_paint_a + s_opp_mr_a
+                    s_opp_3pm = s_opp_c3_m + s_opp_atb3_m
+                    s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
+                    s_opp_fgm = s_opp_2pm + s_opp_3pm
+                    s_opp_fga = s_opp_2pa + s_opp_3pa
+
+                    s_opp_ftm = float(
+                        (
+                            p_match["Action"]
+                            .astype(str)
+                            .str.contains("Opponent FT Score", case=False)
+                        ).sum()
+                    )
+                    s_opp_ft_miss = float(
+                        (
+                            p_match["Action"]
+                            .astype(str)
+                            .str.contains("Opponent FT Miss", case=False)
+                        ).sum()
+                    )
+                    s_opp_fta = s_opp_ftm + s_opp_ft_miss
 
             s_opp_ftm = float(
                 pd.to_numeric(g_line_m["FTM_Agn"], errors="coerce").fillna(0).sum()

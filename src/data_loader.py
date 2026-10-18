@@ -226,6 +226,7 @@ def parse_lineups(file_path: Path, game_id: str) -> pd.DataFrame:
 
         df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
         df = df.dropna(how="all").copy()
+        df.columns = [str(c).strip() for c in df.columns]  # 👈 NETEJA ESPAIS INVISIBLES
 
         text_cols = [
             "Competition",
