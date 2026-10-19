@@ -174,7 +174,7 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
 def parse_advanced_metrics(file_path: Path, game_id: str) -> pd.DataFrame:
     try:
         header_idx, sep = detect_file_sep_and_header(file_path, "metric")
-        df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
+        df = pd.read_csv(file_path, skiprows=header_idx, sep=sep, encoding="latin-1")
         df = df.dropna(how="all").copy()
         # Afegeix aquesta línia a parse_boxscore, parse_lineups i parse_pbp:
         df.columns = [str(c).strip() for c in df.columns]
