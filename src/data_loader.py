@@ -199,7 +199,7 @@ def parse_advanced_metrics(file_path: Path, game_id: str) -> pd.DataFrame:
 def parse_boxscore(file_path: Path, game_id: str) -> pd.DataFrame:
     try:
         header_idx, sep = detect_file_sep_and_header(file_path, "player")
-        df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
+        df = pd.read_csv(file_path, skiprows=header_idx, sep=sep, encoding="latin-1", on_bad_lines='skip')
         df = df.dropna(how="all").copy()
 
         # FILTRAR AUTOMÀTICAMENT FILES DE TOTALS I RIVALS DEL BOXSCORE
