@@ -25,6 +25,9 @@ def get_defensive_actions(box_df, pbp_df=None, game_id=None):
             else pd.DataFrame()
         )
 
+    # FILTRE DE SEGURETAT: Eliminar files de TOTALS o d'equip
+    b_df = b_df[~b_df["Player"].astype(str).str.lower().isin(["team", "totals", "total", "opponent", "equip", "rival"])].copy()
+
     # 1. Analitzar al Play-by-Play quins taps acaben en canvi de possessió
     blocks_with_change = {}
     if not p_df.empty:
@@ -33,7 +36,8 @@ def get_defensive_actions(box_df, pbp_df=None, game_id=None):
         for i in range(n_rows):
             row = p_df.iloc[i]
             act = str(row.get("Action", "")).lower()
-            if "block" in act or "tap" in act:
+            state = str(row.get("Possession State", "")).lower()
+            if ("block" in act or "tap" in act) and state == "defense":
                 player_raw = str(row.get("Player", "")).replace("#", "").strip()
                 # Comprovem les següents 2 jugades per veure si recuperem la pilota
                 recovered = False
@@ -492,32 +496,20 @@ def compute_pbp_advanced_stats(pbp_df, game_id=None):
                 t_dto += 1
 
         # 4. Pèrdues del Rival i Punts de pèrdua d'Argentona
-        if (
-            state == "defense"
-            and "steal" in act_low
-            or ("opponent turnover" in act_low and "steal" in res)
-        ):
-            o_lto += 1
-            for off in [1, 2, 3]:
-                if i + off < n:
-                    nr = pbp.iloc[i + off]
-                    if (
-                        str(nr.get("Possession State", "")).lower() == "offense"
-                        and "make" in str(nr.get("Result", "")).lower()
-                    ):
-                        nz = str(nr.get("Zone", "")).lower()
-                        t_pts_off_to += (
-                            3
-                            if ("3" in nz or "c3" in nz or "atb3" in nz)
-                            else 2
-                        )
-                        break
-                    if (
-                        str(nr.get("Possession State", "")).lower() == "defense"
-                    ):
-                        break
-        elif state == "defense" and "opponent turnover" in act_low:
-            o_dto += 1
+        if state == "defense" and ("turnover" in act_low or "steal" in act_low):
+            if "live" in act_low or "steal" in act_low or "steal" in res:
+                o_lto += 1
+                for off in [1, 2, 3]:
+                    if i + off < n:
+                        nr = pbp.iloc[i + off]
+                        if str(nr.get("Possession State", "")).lower() == "offense" and "make" in str(nr.get("Result", "")).lower():
+                            nz = str(nr.get("Zone", "")).lower()
+                            t_pts_off_to += 3 if ("3" in nz or "c3" in nz or "atb3" in nz) else 2
+                            break
+                        if str(nr.get("Possession State", "")).lower() == "defense":
+                            break
+            else:
+                o_dto += 1
 
     return {
         "fb_pps_t": (t_fb_pts / t_fb_fga) if t_fb_fga > 0 else 0.0,
@@ -747,163 +739,6 @@ def is_player_in_lineup(row, p_num, p_name):
 
     return False
 
-def aggregate_lineup_data(df_slice, forced_min=None, total_game_min=None, total_game_poss=None):
-    """Calcula mètriques d'atac i defensa dels quintets amb ritme equilibrat."""
-    if df_slice.empty:
-        return {}
-
-    # 1. Càlcul de minuts
-    tot_min = 0.0
-    for min_col in ["MIN", "Min", "min", "Duration", "Duration(s)", "Time", "Seconds"]:
-        if min_col in df_slice.columns:
-            m_s = df_slice[min_col].apply(parse_duration_to_min).sum()
-            if m_s > 0:
-                tot_min = float(m_s)
-                break
-
-    # 2. ATAC D'ARGENTONA
-    t_rim_m = find_lineup_col_val(df_slice, ["Rim_FGM_For", "Rim_FGM", "RIM(M)", "Rim(M)", "Rim_FGM_Tm"])
-    t_rim_a = find_lineup_col_val(df_slice, ["Rim_FGA_For", "Rim_FGA", "RIM(A)", "Rim(A)", "Rim_FGA_Tm"])
-    t_paint_m = find_lineup_col_val(df_slice, ["Paint_FGM_For", "Paint_FGM", "PAINT(M)", "Paint(M)", "Paint_FGM_Tm"])
-    t_paint_a = find_lineup_col_val(df_slice, ["Paint_FGA_For", "Paint_FGA", "PAINT(A)", "Paint(A)", "Paint_FGA_Tm"])
-    t_mr_m = find_lineup_col_val(df_slice, ["MR_FGM_For", "MR_FGM", "MR(M)", "MR(M)", "MR_FGM_Tm"])
-    t_mr_a = find_lineup_col_val(df_slice, ["MR_FGA_For", "MR_FGA", "MR(A)", "MR(A)", "MR_FGA_Tm"])
-
-    t_2pm = find_lineup_col_val(df_slice, ["2PM_For", "2PM", "2PM_Tm", "2FGM_For", "2FGM"])
-    t_2pa = find_lineup_col_val(df_slice, ["2PA_For", "2PA", "2PA_Tm", "2FGA_For", "2FGA"])
-    if t_2pa == 0:
-        t_2pm = t_rim_m + t_paint_m + t_mr_m
-        t_2pa = t_rim_a + t_paint_a + t_mr_a
-
-    t_c3_m = find_lineup_col_val(df_slice, ["Cor3_FGM_For", "Cor3_FGM", "C3(M)", "C3_M", "C3_FGM_For", "C3_FGM"])
-    t_c3_a = find_lineup_col_val(df_slice, ["Cor3_FGA_For", "Cor3_FGA", "C3(A)", "C3_A", "C3_FGA_For", "C3_FGA"])
-    t_atb3_m = find_lineup_col_val(df_slice, ["ATB3_FGM_For", "ATB3_FGM", "ATB3(M)", "ATB3_M", "ATB3_FGM_Tm"])
-    t_atb3_a = find_lineup_col_val(df_slice, ["ATB3_FGA_For", "ATB3_FGA", "ATB3(A)", "ATB3_A", "ATB3_FGA_Tm"])
-
-    t_3pm = find_lineup_col_val(df_slice, ["3PM_For", "3PM", "3PM_Tm", "3FGM_For", "3FGM"])
-    t_3pa = find_lineup_col_val(df_slice, ["3PA_For", "3PA", "3PA_Tm", "3FGA_For", "3FGA"])
-    if t_3pa == 0:
-        t_3pm = t_c3_m + t_atb3_m
-        t_3pa = t_c3_a + t_atb3_a
-
-    t_fgm = t_2pm + t_3pm
-    t_fga = t_2pa + t_3pa
-
-    t_ftm = find_lineup_col_val(df_slice, ["FTM_For", "FTM", "FTM_Tm", "FT_M"])
-    t_fta = find_lineup_col_val(df_slice, ["FTA_For", "FTA", "FTA_Tm", "FT_A"])
-    t_oreb = find_lineup_col_val(df_slice, ["OREB_For", "OREB", "Off Reb", "Off_Reb", "OffReb", "OREB_Tm"])
-    t_dreb = find_lineup_col_val(df_slice, ["DREB_For", "DREB", "Def Reb", "Def_Reb", "DefReb", "DREB_Tm"])
-    t_tov = find_lineup_col_val(df_slice, ["TOV_For", "TOV", "Turnovers", "TOV_Tm", "TO_For"])
-
-    t_pts = find_lineup_col_val(df_slice, ["PTS_For", "PTS", "Points", "Points_For", "PTS_Tm"])
-    if t_pts == 0:
-        t_pts = t_2pm * 2.0 + t_3pm * 3.0 + t_ftm
-
-    # 3. DEFENSA (RIVAL)
-    o_rim_m = find_lineup_col_val(df_slice, ["Rim_FGM_Agn"])
-    o_rim_a = find_lineup_col_val(df_slice, ["Rim_FGA_Agn"])
-    o_paint_m = find_lineup_col_val(df_slice, ["Paint_FGM_Agn"])
-    o_paint_a = find_lineup_col_val(df_slice, ["Paint_FGA_Agn"])
-    o_mr_m = find_lineup_col_val(df_slice, ["MR_FGM_Agn"])
-    o_mr_a = find_lineup_col_val(df_slice, ["MR_FGA_Agn"])
-
-    o_2pm = find_lineup_col_val(df_slice, ["2PM_Agn"])
-    o_2pa = find_lineup_col_val(df_slice, ["2PA_Agn"])
-    if o_2pa == 0:
-        o_2pm = o_rim_m + o_paint_m + o_mr_m
-        o_2pa = o_rim_a + o_paint_a + o_mr_a
-
-    o_c3_m = find_lineup_col_val(df_slice, ["Cor3_FGM_Agn"])
-    o_c3_a = find_lineup_col_val(df_slice, ["Cor3_FGA_Agn"])
-    o_atb3_m = find_lineup_col_val(df_slice, ["ATB3_FGM_Agn"])
-    o_atb3_a = find_lineup_col_val(df_slice, ["ATB3_FGA_Agn"])
-
-    o_3pm = find_lineup_col_val(df_slice, ["3PM_Agn"])
-    o_3pa = find_lineup_col_val(df_slice, ["3PA_Agn"])
-    if o_3pa == 0:
-        o_3pm = o_c3_m + o_atb3_m
-        o_3pa = o_c3_a + o_atb3_a
-
-    o_fgm = o_2pm + o_3pm
-    o_fga = o_2pa + o_3pa
-
-    o_ftm = find_lineup_col_val(df_slice, ["FTM_Agn"])
-    o_fta = find_lineup_col_val(df_slice, ["FTA_Agn"])
-    o_oreb = find_lineup_col_val(df_slice, ["OREB_Agn"])
-    o_dreb = find_lineup_col_val(df_slice, ["DREB_Agn"])
-    o_tov = find_lineup_col_val(df_slice, ["TOV_Agn"])
-
-    o_pts = find_lineup_col_val(df_slice, ["PTS_Agn"])
-    if o_pts == 0:
-        o_pts = o_2pm * 2.0 + o_3pm * 3.0 + o_ftm
-
-    # 4. Possessions
-    t_poss_raw = t_fga + 0.44 * t_fta - t_oreb + t_tov
-    o_poss_raw = o_fga + 0.44 * o_fta - o_oreb + o_tov
-    if t_poss_raw > 0 and o_poss_raw > 0:
-        poss = 0.5 * (t_poss_raw + o_poss_raw)
-    else:
-        poss = max(t_poss_raw, o_poss_raw)
-
-    # 5. Integració de minuts
-    if tot_min == 0.0 and forced_min is not None and forced_min > 0:
-        tot_min = float(forced_min)
-    elif tot_min == 0.0 and total_game_min is not None and total_game_poss is not None and total_game_poss > 0:
-        tot_min = poss * (total_game_min / total_game_poss)
-
-    p40 = (40.0 / tot_min) if tot_min > 0 else 0.0
-    pace = (poss * p40) if tot_min > 0 else poss
-
-    return {
-        "minutes": tot_min,
-        "poss": poss,
-        "pace": pace,
-        "plus_minus": t_pts - o_pts,
-        "plus_minus_40": (t_pts - o_pts) * p40,
-        "oer": (t_pts / poss * 100.0) if poss > 0 else 0.0,
-        "der": (o_pts / poss * 100.0) if poss > 0 else 0.0,
-        "net_rtg": ((t_pts - o_pts) / poss * 100.0) if poss > 0 else 0.0,
-        # Volums Atac per 40 min
-        "fga_40": t_fga * p40,
-        "2pa_40": t_2pa * p40,
-        "3pa_40": t_3pa * p40,
-        "fta_40": t_fta * p40,
-        "oreb_40": t_oreb * p40,
-        "dreb_40": t_dreb * p40,
-        "tov_40": t_tov * p40,
-        "3par": (t_3pa / t_fga * 100.0) if t_fga > 0 else 0.0,
-        # Eficiència Atac
-        "2pm": t_2pm, "2pa": t_2pa,
-        "pct_2p": (t_2pm / t_2pa * 100.0) if t_2pa > 0 else 0.0,
-        "3pm": t_3pm, "3pa": t_3pa,
-        "pct_3p": (t_3pm / t_3pa * 100.0) if t_3pa > 0 else 0.0,
-        "efg": ((t_fgm + 0.5 * t_3pm) / t_fga * 100.0) if t_fga > 0 else 0.0,
-        "ftm": t_ftm, "fta": t_fta,
-        "pct_ft": (t_ftm / t_fta * 100.0) if t_fta > 0 else 0.0,
-        "ft_rate": (t_ftm / t_fga) if t_fga > 0 else 0.0,
-        "oreb_pct": (t_oreb / (t_oreb + o_dreb) * 100.0) if (t_oreb + o_dreb) > 0 else 0.0,
-        "tov_pct": (t_tov / (t_fga + 0.44 * t_fta + t_tov) * 100.0) if (t_fga + 0.44 * t_fta + t_tov) > 0 else 0.0,
-        # Volums Defensa Rival per 40 min
-        "opp_fga_40": o_fga * p40,
-        "opp_2pa_40": o_2pa * p40,
-        "opp_3pa_40": o_3pa * p40,
-        "opp_fta_40": o_fta * p40,
-        "opp_oreb_40": o_oreb * p40,
-        "opp_tov_40": o_tov * p40,
-        "opp_3par": (o_3pa / o_fga * 100.0) if o_fga > 0 else 0.0,
-        # Eficiència Defensa Rival
-        "opp_2pm": o_2pm, "opp_2pa": o_2pa,
-        "opp_pct_2p": (o_2pm / o_2pa * 100.0) if o_2pa > 0 else 0.0,
-        "opp_3pm": o_3pm, "opp_3pa": o_3pa,
-        "opp_pct_3p": (o_3pm / o_3pa * 100.0) if o_3pa > 0 else 0.0,
-        "opp_efg": ((o_fgm + 0.5 * o_3pm) / o_fga * 100.0) if o_fga > 0 else 0.0,
-        "opp_ftm": o_ftm, "opp_fta": o_fta,
-        "opp_pct_ft": (o_ftm / o_fta * 100.0) if o_fta > 0 else 0.0,
-        "opp_ft_rate": (o_ftm / o_fga) if o_fga > 0 else 0.0,
-        "opp_oreb_pct": (o_oreb / (o_oreb + t_dreb) * 100.0) if (o_oreb + t_dreb) > 0 else 0.0,
-        "opp_tov_pct": (o_tov / (o_fga + 0.44 * o_fta + o_tov) * 100.0) if (o_fga + 0.44 * o_fta + o_tov) > 0 else 0.0,
-    }
-
 def find_lineup_col_val(df_slice, candidates):
     """Cerca tolerant entre columnes _For, directes o de boxscore."""
     if df_slice.empty:
@@ -1049,8 +884,10 @@ def aggregate_lineup_data(df_slice, forced_min=None, total_game_min=None, total_
         "2pa_40": t_2pa * p40,
         "3pa_40": t_3pa * p40,
         "fta_40": t_fta * p40,
+        "oreb": t_oreb,          
         "oreb_40": t_oreb * p40,
         "dreb_40": t_dreb * p40,
+        "tov": t_tov,            
         "tov_40": t_tov * p40,
         "3par": (t_3pa / t_fga * 100.0) if t_fga > 0 else 0.0,
         # Eficiència Atac
@@ -1129,8 +966,8 @@ def get_5man_lineup_summary(lineups_df, box_df=None, min_minutes=0.0):
             "T3 (A/I)": f"{int(st_data['3pm'])}/{int(st_data['3pa'])}",
             "%T3": round(st_data["pct_3p"], 1),
             "3PAr": round(st_data["3par"], 1),
-            "REB_O": int(st_data.get("oreb_40", 0) * (st_data["minutes"] / 40.0)),
-            "PER": int(st_data.get("tov_40", 0) * (st_data["minutes"] / 40.0)),
+            "REB_O": int(st_data.get("oreb", 0)),
+            "PER": int(st_data.get("tov", 0)),
         })
 
     df_res = pd.DataFrame(lineups_list)

@@ -387,9 +387,7 @@ METRIC_NAMES_CAT = {
 # -------------------------------------------------------------
 # FUNCIONS AUXILIARS D'ESTIL I OUTLIERS
 # -------------------------------------------------------------
-STYLE_RED = "color: #d00000; font-weight: 700;"  # Bo / Destacat
-STYLE_BLUE = "color: #0077b6; font-weight: 700;"  # Desfavorable
-STYLE_NEUTRAL = "color: #212529; font-weight: 400;"
+
 
 def parse_min_to_float(min_val):
     """Converteix '24:30' o '00:11' a minuts decimals."""
@@ -433,10 +431,6 @@ def render_boxscore(df, mode="Tradicional"):
         column_config=col_cfg if col_cfg else None,
     )
     
-STYLE_RED = "color: #d00000; font-weight: 700; text-align: right;"
-STYLE_BLUE = "color: #0077b6; font-weight: 700; text-align: right;"
-STYLE_NEUTRAL = "color: #212529; font-weight: 400; text-align: right;"
-
 
 def style_boxscore(df_disp, mode="Tradicional"):
     def apply_row_styles(df):
@@ -710,13 +704,12 @@ def style_boxscore(df_disp, mode="Tradicional"):
         elif col in ["Plays", "PPP", "VPP"]:
             if df_disp[col].dtype in [float, np.float64]:
                 fmt_dict[col] = "{:.1f}"
+                
 
     if fmt_dict:
         styler = styler.format(fmt_dict, na_rep="-")
 
     return styler
-
-import unicodedata
 
 def clean_txt(t):
     """Elimina accents, espais i passa a minúscules de forma segura."""
@@ -1569,6 +1562,16 @@ if view_mode == "Partit Individual":
                 )
                 pbp_stats_m = compute_pbp_advanced_stats(pbp_df, selected_game_id)
                 # 3. LES 14 FILES EXACTES I EN ORDRE FIX
+                fb_pps_t_val = pbp_stats_m.get('fb_pps_t', 0.0) or fb_pps_t
+                fb_pps_o_val = pbp_stats_m.get('fb_pps_o', 0.0) or fb_pps_o
+                hc_pps_t_val = pbp_stats_m.get('hc_pps_t', 0.0) or half_pps_t
+                hc_pps_o_val = pbp_stats_m.get('hc_pps_o', 0.0) or half_pps_o
+                pto_t_val = pbp_stats_m.get('pts_off_to_t', 0.0) or pts_off_to_t
+                pto_o_val = pbp_stats_m.get('pts_off_to_o', 0.0) or pts_off_to_o
+                lto_t_val = pbp_stats_m.get('lto_t', 0.0) or lto_t
+                lto_o_val = pbp_stats_m.get('lto_o', 0.0) or lto_o
+                dto_t_val = pbp_stats_m.get('dto_t', 0.0) or dto_t
+                dto_o_val = pbp_stats_m.get('dto_o', 0.0) or dto_o
                 table_rows_single = [
                     (
                         "Marcador del Partit",
@@ -2085,7 +2088,7 @@ if view_mode == "Partit Individual":
                 ch2_miss = pd.to_numeric(g_box.get("2ndCh(Miss)", 0), errors="coerce").fillna(0).astype(int)
                 ch2_tot = ch2_m + ch2_miss
 
-                df_reb["2a Op. (A/I)"] = [f"{m}/{tot}".rjust(10, '\u00A0') for m, tot in zip(ch2_m, ch2_tot)]
+                df_reb["2a Op. (A/I)"] = [f"{m}/{tot}" for m, tot in zip(ch2_m, ch2_tot)]
                 df_reb["Pts 2a Op."] = ch2_m * 2
                 df_reb["Fallades 2a Op."] = ch2_miss
                 df_reb["% 2a Op."] = ((ch2_m / ch2_tot.replace(0, np.nan)) * 100.0).fillna(0.0)

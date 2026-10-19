@@ -130,9 +130,27 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
         match_j = re.search(r"[_\b]J(\d+)[_\b]", folder_name.upper()) or re.search(r"\bJ(\d+)\b", folder_name.upper())
         if match_j:
             round_str = f"Jornada {int(match_j.group(1))}"
+    # Determinació de Pista (Casa / Fora)
+    pista = "Casa"
+    fn_low = folder_name.lower()
+    if "fora" in fn_low or "away" in fn_low:
+        pista = "Fora"
 
+    # Determinació del Mes
+    month_map = {
+        "01": "Gener", "02": "Febrer", "03": "Març", "04": "Abril",
+        "05": "Maig", "06": "Juny", "07": "Juliol", "08": "Agost",
+        "09": "Setembre", "10": "Octubre", "11": "Novembre", "12": "Desembre"
+    }
+    month_str = "Altres"
+    if date_str:
+        # Busca dos dígits de mes a la data (ex: 2026-10-12 o 2026_10_12)
+        m_match = re.search(r"[-_/](\d{2})[-_/]", date_str) or re.search(r"^\d{4}[-_/](\d{2})", date_str)
+        if m_match and m_match.group(1) in month_map:
+            month_str = month_map[m_match.group(1)]
+            
     # 6. Títol net final
-    score_txt = f"{int(score_team)}-{int(score_opp)}" if score_team and score_opp else "vs"
+    score_txt = f"{int(score_team)}-{int(score_opp)}" if (score_team is not None and score_opp is not None) else "vs"
     
     if round_str:
         readable_name = f"{date_str} - {our_team} {score_txt} {opponent} ({round_str})"
@@ -142,6 +160,8 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
     return {
         "game_id": folder_name,
         "date": date_str,
+        "month": month_str,     
+        "pista": pista,         
         "competition": comp_str,
         "our_team": our_team,
         "opponent": opponent,
@@ -156,6 +176,8 @@ def parse_advanced_metrics(file_path: Path, game_id: str) -> pd.DataFrame:
         header_idx, sep = detect_file_sep_and_header(file_path, "metric")
         df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
         df = df.dropna(how="all").copy()
+        # Afegeix aquesta línia a parse_boxscore, parse_lineups i parse_pbp:
+        df.columns = [str(c).strip() for c in df.columns]
 
         if len(df.columns) < 3:
             return pd.DataFrame()
@@ -349,7 +371,7 @@ def rebuild_cache():
 
         # 2. Generar metadades amb el marcador real
         meta = parse_metadata(folder, score_t, score_o)
-
+        
         # 3. Llegir la resta de fitxers (Boxscore, Lineups, PBP)
         for f in files:
             name = f.name.lower()
@@ -432,134 +454,4 @@ def rebuild_cache():
     )
     return df_games, df_box, df_lineup, df_adv, df_pbp
 
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-
-    games_meta = []
-    adv_list = []
-    box_list = []
-    lineup_list = []
-    pbp_list = []
-
-    # 1. Cerca única de carpetes
-    all_csvs = [
-        f
-        for f in RAW_DATA_DIR.rglob("*")
-        if f.is_file() and f.suffix.lower() == ".csv"
-    ]
-    game_folders = sorted(list({csv_file.parent.resolve() for csv_file in all_csvs}))
-
-    print(
-        f"🔍 S'han trobat {len(game_folders)} carpetes de partits a data/raw/"
-    )
-
-    for folder in game_folders:
-        folder = Path(folder)
-        meta = parse_metadata(folder)
-        game_id = meta["game_id"]
-
-        adv_done = False
-        box_done = False
-        line_done = False
-        pbp_done = False
-        found = False
-
-        files = sorted(
-            [
-                f
-                for f in folder.iterdir()
-                if f.is_file() and f.suffix.lower() == ".csv"
-            ]
-        )
-
-        for f in files:
-            name = f.name.lower()
-            if (
-                ("advanced" in name or "metric" in name)
-                and not adv_done
-                and "box" not in name
-            ):
-                df = parse_advanced_metrics(f, game_id)
-                if not df.empty:
-                    adv_list.append(df)
-                    adv_done = True
-                    found = True
-            elif (
-                ("boxscore" in name or "box" in name or "player" in name)
-                and not box_done
-                and "line" not in name
-            ):
-                df = parse_boxscore(f, game_id)
-                if not df.empty:
-                    box_list.append(df)
-                    box_done = True
-                    found = True
-            elif (
-                ("lineup" in name or "5man" in name or "line" in name)
-                and not line_done
-                and "box" not in name
-            ):
-                df = parse_lineups(f, game_id)
-                if not df.empty:
-                    lineup_list.append(df)
-                    line_done = True
-                    found = True
-            elif (
-                ("playbyplay" in name or "pbp" in name or "jugada" in name)
-                and not pbp_done
-                and "box" not in name
-            ):
-                df = parse_pbp(f, game_id)
-                if not df.empty:
-                    pbp_list.append(df)
-                    pbp_done = True
-                    found = True
-
-        if found:
-            games_meta.append(meta)
-            print(f"  -> Partit processat: {meta['name']}")
-
-    # 2. Generar DataFrames únics nets
-    df_games = (
-        pd.DataFrame(games_meta).drop_duplicates(subset=["game_id"])
-        if games_meta
-        else pd.DataFrame()
-    )
-    df_box = (
-        pd.concat(box_list, ignore_index=True).drop_duplicates(
-            subset=["game_id", "Player"]
-        )
-        if box_list
-        else pd.DataFrame()
-    )
-    df_lineup = (
-        pd.concat(lineup_list, ignore_index=True).drop_duplicates(
-            subset=["game_id", "Lineup"]
-        )
-        if lineup_list
-        else pd.DataFrame()
-    )
-    df_adv = (
-        pd.concat(adv_list, ignore_index=True).drop_duplicates(
-            subset=["game_id", "Metric"]
-        )
-        if adv_list
-        else pd.DataFrame()
-    )
-    df_pbp = (
-        pd.concat(pbp_list, ignore_index=True).drop_duplicates()
-        if pbp_list
-        else pd.DataFrame()
-    )
-
-    # 3. Guardar en Parquet
-    df_games.to_parquet(CACHE_DIR / "games_index.parquet", index=False)
-    df_box.to_parquet(CACHE_DIR / "all_boxscores.parquet", index=False)
-    df_lineup.to_parquet(CACHE_DIR / "all_lineups.parquet", index=False)
-    df_adv.to_parquet(CACHE_DIR / "all_advanced.parquet", index=False)
-    df_pbp.to_parquet(CACHE_DIR / "all_pbp.parquet", index=False)
-
-    print(
-        f"✅ Memòria cau neta generada correctament: {len(games_meta)} partits."
-    )
-    return df_games, df_box, df_lineup, df_adv, df_pbp
+    
