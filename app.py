@@ -2105,6 +2105,8 @@ if view_mode == "Partit Individual":
     elif active_tab == "👥 Quintets i On/Off":
         g_line = lineups_df[lineups_df["game_id"].astype(str) == str(selected_game_id)].copy()
         g_box = box_df[box_df["game_id"].astype(str) == str(selected_game_id)].copy()
+        
+
         render_on_off_dashboard(g_line, g_box, key_prefix="single")
         
 # --- MODO 2: TOTALS ACUMULATS DE LA TEMPORADA ---
