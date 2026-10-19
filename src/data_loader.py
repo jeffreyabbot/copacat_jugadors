@@ -180,7 +180,14 @@ def parse_boxscore(file_path: Path, game_id: str) -> pd.DataFrame:
         df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
         df = df.dropna(how="all").copy()
 
-        
+        # FILTRAR AUTOMÀTICAMENT FILES DE TOTALS I RIVALS DEL BOXSCORE
+        if "Player" in df.columns:
+            p_upper = df["Player"].astype(str).str.upper().str.strip()
+            # Ignorem files que siguin TOTALS, TOTAL, OPPONENT, RIVAL o buides
+            is_summary = p_upper.isin(
+                ["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"]
+            )
+            df = df[~is_summary].copy()
 
         if "Name" in df.columns:
             n_upper = df["Name"].astype(str).str.upper().str.strip()
@@ -219,7 +226,6 @@ def parse_lineups(file_path: Path, game_id: str) -> pd.DataFrame:
 
         df = pd.read_csv(file_path, skiprows=header_idx, sep=sep)
         df = df.dropna(how="all").copy()
-        df.columns = [str(c).strip() for c in df.columns]  # 👈 NETEJA ESPAIS INVISIBLES
 
         text_cols = [
             "Competition",
@@ -277,12 +283,7 @@ def parse_pbp(file_path: Path, game_id: str) -> pd.DataFrame:
 def rebuild_cache():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    # 🛡️ SOLUCIÓ WINDOWS: Esborrar els parquet antics abans de gravar per evitar bloquejos
-    for p_file in CACHE_DIR.glob("*.parquet"):
-        try:
-            os.remove(p_file)
-        except Exception:
-            pass
+
     games_meta = []
     adv_list = []
     box_list = []
