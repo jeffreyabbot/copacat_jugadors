@@ -686,25 +686,14 @@ def style_boxscore(df_disp, mode="Tradicional"):
     # Formatar numèricament amb % i decimals preservant l'ordenació
     fmt_dict = {}
     for col in df_disp.columns:
-        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats"]:
-            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
-                fmt_dict[col] = "{:.0f}%"
-        elif (
-            "%" in col
-            or "eFG" in col
-            or "TOV" in col
-            or "OREB" in col
-            or "USG" in col
-        ):
-            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
-                fmt_dict[col] = "{:.1f}%"
-        elif "FT Rate" in col:
-            if df_disp[col].dtype in [float, np.float64]:
-                fmt_dict[col] = "{:.2f}"
-        elif col in ["Plays", "PPP", "VPP"]:
-            if df_disp[col].dtype in [float, np.float64]:
-                fmt_dict[col] = "{:.1f}"
-                
+        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats", "% 2a Op."]:
+            fmt_dict[col] = "{:.0f}%"
+        elif any(k in col for k in ["%", "eFG", "TOV", "OREB", "USG"]):
+            fmt_dict[col] = "{:.1f}%"
+        elif "FT Rate" in col or "REB/Min" in col or "Reb/P" in col or "PPP" in col or "VPP" in col:
+            fmt_dict[col] = "{:.2f}"  # 👈 Aquí obliguem a 2 decimals purs
+        elif col in ["Plays"]:
+            fmt_dict[col] = "{:.1f}"
 
     if fmt_dict:
         styler = styler.format(fmt_dict, na_rep="-")
