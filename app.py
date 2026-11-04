@@ -245,14 +245,20 @@ def get_cached_data():
 
 # Desempaquetem exactament els 5 DataFrames:
 games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
-# Filtre de seguretat: assegurar que box_df només té jugadors individuals
+
+# NOVES VARIABLES PER ALS TOTALS OFICIALS:
+box_totals_df = pd.DataFrame()
+box_opp_df = pd.DataFrame()
+
 if not box_df.empty and "Player" in box_df.columns:
     p_up = box_df["Player"].astype(str).str.upper().str.strip()
-    box_df = box_df[
-        ~p_up.isin(
-            ["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"]
-        )
-    ].copy()
+    
+    # 1. Guardem a part les files de TOTALS i OPPONENT oficials abans de netejar-les!
+    box_totals_df = box_df[p_up.isin(["TOTALS", "TOTAL", "TEAM TOTAL", "EQUIP"])].copy()
+    box_opp_df = box_df[p_up.isin(["OPPONENT", "RIVAL"])].copy()
+
+    # 2. Filtre de seguretat per deixar només els jugadors a box_df i que no trenqui taules
+    box_df = box_df[~p_up.isin(["TOTALS", "TOTAL", "OPPONENT", "RIVAL", "TEAM TOTAL", "EQUIP"])].copy()
 
 # --- BARRA LATERAL ---
 # 1. Mostrar el logo si existeix a la carpeta assets o a l'arrel
@@ -1016,94 +1022,43 @@ if view_mode == "Partit Individual":
                     .sum()
                 )
 
-            # 2. SUMATORIS REALS DEL RIVAL
-            s_opp_rim_m = float(
-                pd.to_numeric(g_line_m["Rim_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_rim_a = float(
-                pd.to_numeric(g_line_m["Rim_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_paint_m = float(
-                pd.to_numeric(g_line_m["Paint_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_paint_a = float(
-                pd.to_numeric(g_line_m["Paint_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_mr_m = float(
-                pd.to_numeric(g_line_m["MR_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_mr_a = float(
-                pd.to_numeric(g_line_m["MR_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_c3_m = float(
-                pd.to_numeric(g_line_m["Cor3_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_c3_a = float(
-                pd.to_numeric(g_line_m["Cor3_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_atb3_m = float(
-                pd.to_numeric(g_line_m["ATB3_FGM_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_atb3_a = float(
-                pd.to_numeric(g_line_m["ATB3_FGA_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
+            # 2. SUMATORIS REALS DEL RIVAL (Llegits directament del BoxScore Oficial!)
+            opp_row = box_opp_df[box_opp_df["game_id"] == str(selected_game_id)]
 
-            s_opp_2pm = s_opp_rim_m + s_opp_paint_m + s_opp_mr_m
-            s_opp_2pa = s_opp_rim_a + s_opp_paint_a + s_opp_mr_a
-            s_opp_3pm = s_opp_c3_m + s_opp_atb3_m
-            s_opp_3pa = s_opp_c3_a + s_opp_atb3_a
+            s_opp_rim_m = float(pd.to_numeric(opp_row.get("RIM(M)", 0), errors="coerce").fillna(0).sum())
+            s_opp_rim_a = float(pd.to_numeric(opp_row.get("RIM(A)", 0), errors="coerce").fillna(0).sum())
+            s_opp_paint_m = float(pd.to_numeric(opp_row.get("PAINT(M)", 0), errors="coerce").fillna(0).sum())
+            s_opp_paint_a = float(pd.to_numeric(opp_row.get("PAINT(A)", 0), errors="coerce").fillna(0).sum())
+            s_opp_mr_m = float(pd.to_numeric(opp_row.get("MR(M)", 0), errors="coerce").fillna(0).sum())
+            s_opp_mr_a = float(pd.to_numeric(opp_row.get("MR(A)", 0), errors="coerce").fillna(0).sum())
+            s_opp_c3_m = float(pd.to_numeric(opp_row.get("C3(M)", 0), errors="coerce").fillna(0).sum())
+            s_opp_c3_a = float(pd.to_numeric(opp_row.get("C3(A)", 0), errors="coerce").fillna(0).sum())
+            s_opp_atb3_m = float(pd.to_numeric(opp_row.get("ATB3(M)", 0), errors="coerce").fillna(0).sum())
+            s_opp_atb3_a = float(pd.to_numeric(opp_row.get("ATB3(A)", 0), errors="coerce").fillna(0).sum())
+
+            raw_o_2pm = float(pd.to_numeric(opp_row.get("2PM", 0), errors="coerce").fillna(0).sum())
+            raw_o_2pa = float(pd.to_numeric(opp_row.get("2PA", 0), errors="coerce").fillna(0).sum())
+            raw_o_3pm = float(pd.to_numeric(opp_row.get("3PM", 0), errors="coerce").fillna(0).sum())
+            raw_o_3pa = float(pd.to_numeric(opp_row.get("3PA", 0), errors="coerce").fillna(0).sum())
+
+            s_opp_2pm = raw_o_2pm if raw_o_2pa > 0 else (s_opp_rim_m + s_opp_paint_m + s_opp_mr_m)
+            s_opp_2pa = raw_o_2pa if raw_o_2pa > 0 else (s_opp_rim_a + s_opp_paint_a + s_opp_mr_a)
+            s_opp_3pm = raw_o_3pm if raw_o_3pa > 0 else (s_opp_c3_m + s_opp_atb3_m)
+            s_opp_3pa = raw_o_3pa if raw_o_3pa > 0 else (s_opp_c3_a + s_opp_atb3_a)
             s_opp_fgm = s_opp_2pm + s_opp_3pm
             s_opp_fga = s_opp_2pa + s_opp_3pa
 
-            s_opp_ftm = float(
-                pd.to_numeric(g_line_m["FTM_Agn"], errors="coerce").fillna(0).sum()
-            )
-            s_opp_fta = float(
-                pd.to_numeric(g_line_m["FTA_Agn"], errors="coerce").fillna(0).sum()
-            )
-            s_opp_oreb = float(
-                pd.to_numeric(g_line_m["OREB_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_dreb = float(
-                pd.to_numeric(g_line_m["DREB_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
-            s_opp_tov = float(
-                pd.to_numeric(g_line_m["TOV_Agn"], errors="coerce")
-                .fillna(0)
-                .sum()
-            )
+            s_opp_ftm = float(pd.to_numeric(opp_row.get("FTM", 0), errors="coerce").fillna(0).sum())
+            s_opp_fta = float(pd.to_numeric(opp_row.get("FTA", 0), errors="coerce").fillna(0).sum())
+            s_opp_oreb = float(pd.to_numeric(opp_row.get("Off Reb", 0), errors="coerce").fillna(0).sum())
+            s_opp_dreb = float(pd.to_numeric(opp_row.get("Def Reb", 0), errors="coerce").fillna(0).sum())
+            s_opp_tov = float(pd.to_numeric(opp_row.get("Turnovers", 0), errors="coerce").fillna(0).sum())
 
             s_opp_paint_pts = (s_opp_rim_m + s_opp_paint_m) * 2.0
             s_opp_paint_fga = s_opp_rim_a + s_opp_paint_a
-            s_opp_nopaint_pts = (
-                s_opp_mr_m * 2.0 + s_opp_c3_m * 3.0 + s_opp_atb3_m * 3.0
-            )
+            s_opp_nopaint_pts = (s_opp_mr_m * 2.0 + s_opp_c3_m * 3.0 + s_opp_atb3_m * 3.0)
             s_opp_nopaint_fga = s_opp_mr_a + s_opp_c3_a + s_opp_atb3_a
-            s_opp_fg_pts = s_opp_paint_pts + s_opp_nopaint_pts
+            s_opp_fg_pts = s_opp_2pm * 2.0 + s_opp_3pm * 3.0
 
             # 3. CÀLCULS MATEMÀTICS DELS 4 FACTORS (Dean Oliver)
             efg_team = adv_dict_team.get(
@@ -2193,36 +2148,44 @@ else:
             team_fg_pts = team_paint_pts + team_nopaint_pts
             team_pts = team_fg_pts + team_ftm
 
-            # 2. SUMATORIS REALS DELS RIVALS
-            opp_rim_m = int(safe_col_sum(comp_lineups, "Rim_FGM_Agn"))
-            opp_rim_a = int(safe_col_sum(comp_lineups, "Rim_FGA_Agn"))
-            opp_paint_m = int(safe_col_sum(comp_lineups, "Paint_FGM_Agn"))
-            opp_paint_a = int(safe_col_sum(comp_lineups, "Paint_FGA_Agn"))
-            opp_mr_m = int(safe_col_sum(comp_lineups, "MR_FGM_Agn"))
-            opp_mr_a = int(safe_col_sum(comp_lineups, "MR_FGA_Agn"))
-            opp_c3_m = int(safe_col_sum(comp_lineups, "Cor3_FGM_Agn"))
-            opp_c3_a = int(safe_col_sum(comp_lineups, "Cor3_FGA_Agn"))
-            opp_atb3_m = int(safe_col_sum(comp_lineups, "ATB3_FGM_Agn"))
-            opp_atb3_a = int(safe_col_sum(comp_lineups, "ATB3_FGA_Agn"))
+            # 2. SUMATORIS REALS DELS RIVALS (Des de l'acumulat oficial del Boxscore)
+            season_opp_df = box_opp_df[box_opp_df["game_id"].astype(str).isin(valid_ids)]
 
-            opp_2pm = opp_rim_m + opp_paint_m + opp_mr_m
-            opp_2pa = opp_rim_a + opp_paint_a + opp_mr_a
-            opp_3pm = opp_c3_m + opp_atb3_m
-            opp_3pa = opp_c3_a + opp_atb3_a
+            opp_rim_m = int(safe_col_sum(season_opp_df, "RIM(M)"))
+            opp_rim_a = int(safe_col_sum(season_opp_df, "RIM(A)"))
+            opp_paint_m = int(safe_col_sum(season_opp_df, "PAINT(M)"))
+            opp_paint_a = int(safe_col_sum(season_opp_df, "PAINT(A)"))
+            opp_mr_m = int(safe_col_sum(season_opp_df, "MR(M)"))
+            opp_mr_a = int(safe_col_sum(season_opp_df, "MR(A)"))
+            opp_c3_m = int(safe_col_sum(season_opp_df, "C3(M)"))
+            opp_c3_a = int(safe_col_sum(season_opp_df, "C3(A)"))
+            opp_atb3_m = int(safe_col_sum(season_opp_df, "ATB3(M)"))
+            opp_atb3_a = int(safe_col_sum(season_opp_df, "ATB3(A)"))
+
+            raw_o_2pm = int(safe_col_sum(season_opp_df, "2PM"))
+            raw_o_2pa = int(safe_col_sum(season_opp_df, "2PA"))
+            raw_o_3pm = int(safe_col_sum(season_opp_df, "3PM"))
+            raw_o_3pa = int(safe_col_sum(season_opp_df, "3PA"))
+
+            opp_2pm = raw_o_2pm if raw_o_2pa > 0 else (opp_rim_m + opp_paint_m + opp_mr_m)
+            opp_2pa = raw_o_2pa if raw_o_2pa > 0 else (opp_rim_a + opp_paint_a + opp_mr_a)
+            opp_3pm = raw_o_3pm if raw_o_3pa > 0 else (opp_c3_m + opp_atb3_m)
+            opp_3pa = raw_o_3pa if raw_o_3pa > 0 else (opp_c3_a + opp_atb3_a)
+            
             opp_fgm = opp_2pm + opp_3pm
             opp_fga = opp_2pa + opp_3pa
 
-            opp_ftm = int(safe_col_sum(comp_lineups, "FTM_Agn"))
-            opp_fta = int(safe_col_sum(comp_lineups, "FTA_Agn"))
-            opp_oreb = int(safe_col_sum(comp_lineups, "OREB_Agn"))
-            opp_dreb = int(safe_col_sum(comp_lineups, "DREB_Agn"))
-            opp_tov = int(safe_col_sum(comp_lineups, "TOV_Agn"))
+            opp_ftm = int(safe_col_sum(season_opp_df, "FTM"))
+            opp_fta = int(safe_col_sum(season_opp_df, "FTA"))
+            opp_oreb = int(safe_col_sum(season_opp_df, "Off Reb"))
+            opp_dreb = int(safe_col_sum(season_opp_df, "Def Reb"))
+            opp_tov = int(safe_col_sum(season_opp_df, "Turnovers"))
 
             opp_paint_pts = (opp_rim_m + opp_paint_m) * 2
             opp_paint_fga = opp_rim_a + opp_paint_a
             opp_nopaint_pts = opp_mr_m * 2 + opp_c3_m * 3 + opp_atb3_m * 3
             opp_nopaint_fga = opp_mr_a + opp_c3_a + opp_atb3_a
-            opp_fg_pts = opp_paint_pts + opp_nopaint_pts
+            opp_fg_pts = opp_2pm * 2 + opp_3pm * 3
             opp_pts = opp_fg_pts + opp_ftm
 
             # 3. 4 FACTORS PONDERATS
