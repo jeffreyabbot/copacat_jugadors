@@ -468,7 +468,7 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
             if mode == "Tradicional":
                 min_att = 0.7 if is_per_game else (2.0 * pj_val if is_totals_view else 2.0)
 
-                # Tirs: Pintem TANT el percentatge COM la fracció (A/I)!
+                # Tirs: Llindars ajustats a Copa Catalunya (T2 vermell >= 55% o alt volum; blau < 40%)
                 for shot_pct, shot_ai in [("%T2", "T2 (A/I)"), ("%T3", "T3 (A/I)"), ("%TL", "TL (A/I)")]:
                     if shot_ai in df.columns:
                         m, a = parse_fraction(row[shot_ai])
@@ -476,20 +476,29 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                             pct = (m / a) * 100.0 if a > 0 else 0.0
                             color = None
                             if shot_pct == "%T2":
-                                if pct >= 65.0: color = STYLE_RED
-                                elif pct <= 30.0: color = STYLE_BLUE
+                                # Vermell si fa >= 55% O si ha ficat molts tirs (ex: >= 6 ficats amb >= 50%)
+                                t2_vol_limit = (4.0 * pj_val) if is_totals_view else (4.0 if is_per_game else 6.0)
+                                if pct >= 55.0 or (m >= t2_vol_limit and pct >= 50.0):
+                                    color = STYLE_RED
+                                elif pct < 40.0:  # 👈 Ara qualsevol per sota del 40% surt blau!
+                                    color = STYLE_BLUE
+
                             elif shot_pct == "%T3":
-                                if pct >= 45.0: color = STYLE_RED
-                                elif pct <= 20.0: color = STYLE_BLUE
+                                if pct >= 40.0 or (m >= 3.0 and pct >= 35.0):
+                                    color = STYLE_RED
+                                elif pct <= 22.0:
+                                    color = STYLE_BLUE
+
                             elif shot_pct == "%TL":
-                                if pct >= 80.0: color = STYLE_RED
-                                elif pct <= 45.0: color = STYLE_BLUE
+                                if pct >= 75.0:
+                                    color = STYLE_RED
+                                elif pct <= 50.0:
+                                    color = STYLE_BLUE
 
                             if color:
                                 css_df.loc[i, shot_ai] = color
                                 if shot_pct in df.columns:
                                     css_df.loc[i, shot_pct] = color
-
                 # Punts destacats
                 pts_limit = (13.0 * pj_val) if is_totals_view else 13.0
                 for pts_col in ["PTS", "PTS/P", "PPP"]:
@@ -563,8 +572,13 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                     except Exception: pass
                 if "3. OREB% (Rebot)" in df.columns:
                     try:
-                        if float(row["3. OREB% (Rebot)"]) >= 12.0: css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
-                    except Exception: pass
+                        v = float(row["3. OREB% (Rebot)"])
+                        if v >= 12.0:
+                            css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
+                        elif v <= 4.0:  # 👈 També blau per al 0%
+                            css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_BLUE
+                    except Exception:
+                        pass
                 if "4. FT Rate (TL)" in df.columns:
                     try:
                         if float(row["4. FT Rate (TL)"]) >= 0.25: css_df.loc[i, "4. FT Rate (TL)"] = STYLE_RED
@@ -691,12 +705,16 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                         if float(row["REB_O"]) >= reb_off_lim: css_df.loc[i, "REB_O"] = STYLE_RED
                     except Exception: pass
 
-                if "OREB%" in df.columns:
-                    try:
-                        v = float(row["OREB%"])
-                        if v >= 12.0: css_df.loc[i, "OREB%"] = STYLE_RED
-                        elif v <= 3.0 and v > 0: css_df.loc[i, "OREB%"] = STYLE_BLUE
-                    except Exception: pass
+                # OREB% / RO%: Vermell si >= 12% i BLAU si <= 4% (inclou el 0.0%)
+                for oreb_col in ["OREB%", "RO%", "3. OREB% (Rebot)"]:
+                    if oreb_col in df.columns:
+                        try:
+                            v = float(row[oreb_col])
+                            if v >= 12.0:
+                                css_df.loc[i, oreb_col] = STYLE_RED
+                            elif v <= 4.0:  # 👈 Aquí el 0% es pintarà en BLAU!
+                                css_df.loc[i, oreb_col] = STYLE_BLUE
+                        except Exception: pass
 
                 if "REB/Min" in df.columns:
                     try:
