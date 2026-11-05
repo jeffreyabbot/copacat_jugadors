@@ -2875,41 +2875,47 @@ else:
             )
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # 3. Agrupació incloent MIN_TOT
+            # Funció auxiliar segura per evitar qualsevol KeyError si falta una columna
+            def safe_agg(col_name, agg_func="sum"):
+                if col_name in comp_box.columns:
+                    return (col_name, agg_func)
+                return ("Points", "count")  # Columna dummy que sabem que existeix sempre
+
+            # 3. Agrupació segura
             p_agg = (
                 comp_box.groupby(["Player", "Name"])
                 .agg(
-                    PJ=("game_id", "nunique"),
+                    PJ=("game_id", "nunique") if "game_id" in comp_box.columns else ("Player", "count"),
                     MIN_TOT=("_min_num", "sum"),
-                    PTS=("Points", "sum"),
-                    T2M=("2PM", "sum"),
-                    T2A=("2PA", "sum"),
-                    T3M=("3PM", "sum"),
-                    T3A=("3PA", "sum"),
-                    FTM=("FTM", "sum"),
-                    FTA=("FTA", "sum"),
-                    RIM_M=("RIM(M)", "sum") if "RIM(M)" in comp_box.columns else ("Points", "count"),
-                    RIM_A=("RIM(A)", "sum") if "RIM(A)" in comp_box.columns else ("Points", "count"),
-                    PAINT_M=("PAINT(M)", "sum") if "PAINT(M)" in comp_box.columns else ("Points", "count"),
-                    PAINT_A=("PAINT(A)", "sum") if "PAINT(A)" in comp_box.columns else ("Points", "count"),
-                    MR_M=("MR(MR)", "sum") if "MR(M)" in comp_box.columns else ("Points", "count"),
-                    MR_A=("MR(A)", "sum") if "MR(A)" in comp_box.columns else ("Points", "count"),
-                    C3_M=("C3(M)", "sum") if "C3(M)" in comp_box.columns else ("Points", "count"),
-                    C3_A=("C3(A)", "sum") if "C3(A)" in comp_box.columns else ("Points", "count"),
-                    ATB3_M=("ATB3(M)", "sum") if "ATB3(M)" in comp_box.columns else ("Points", "count"),
-                    ATB3_A=("ATB3(A)", "sum") if "ATB3(A)" in comp_box.columns else ("Points", "count"),
-                    FBM=("FB(M)", "sum") if "FB(M)" in comp_box.columns else ("Points", "count"),
-                    FBMiss=("FB(Miss)", "sum") if "FB(Miss)" in comp_box.columns else ("Points", "count"),
-                    Ch2M=("2ndCh(M)", "sum") if "2ndCh(M)" in comp_box.columns else ("Points", "count"),
-                    Ch2Miss=("2ndCh(Miss)", "sum") if "2ndCh(Miss)" in comp_box.columns else ("Points", "count"),
-                    REB_O=("Off Reb", "sum"),
-                    REB_D=("Def Reb", "sum"),
-                    AST=("Assists", "sum"),
-                    REC=("Steals", "sum"),
-                    TAP=("Blocks", "sum"),
-                    PER=("Turnovers", "sum"),
-                    FAL=("Fouls", "sum"),
-                    F_REC=("Fouls Drawn", "sum"),
+                    PTS=safe_agg("Points"),
+                    T2M=safe_agg("2PM"),
+                    T2A=safe_agg("2PA"),
+                    T3M=safe_agg("3PM"),
+                    T3A=safe_agg("3PA"),
+                    FTM=safe_agg("FTM"),
+                    FTA=safe_agg("FTA"),
+                    RIM_M=safe_agg("RIM(M)"),
+                    RIM_A=safe_agg("RIM(A)"),
+                    PAINT_M=safe_agg("PAINT(M)"),
+                    PAINT_A=safe_agg("PAINT(A)"),
+                    MR_M=safe_agg("MR(M)"),       # 👈 Aquí hi havia l'error amb "MR(MR)"
+                    MR_A=safe_agg("MR(A)"),
+                    C3_M=safe_agg("C3(M)"),
+                    C3_A=safe_agg("C3(A)"),
+                    ATB3_M=safe_agg("ATB3(M)"),
+                    ATB3_A=safe_agg("ATB3(A)"),
+                    FBM=safe_agg("FB(M)"),
+                    FBMiss=safe_agg("FB(Miss)"),
+                    Ch2M=safe_agg("2ndCh(M)"),
+                    Ch2Miss=safe_agg("2ndCh(Miss)"),
+                    REB_O=safe_agg("Off Reb"),
+                    REB_D=safe_agg("Def Reb"),
+                    AST=safe_agg("Assists"),
+                    REC=safe_agg("Steals"),
+                    TAP=safe_agg("Blocks"),
+                    PER=safe_agg("Turnovers"),
+                    FAL=safe_agg("Fouls"),
+                    F_REC=safe_agg("Fouls Drawn"),
                 )
                 .reset_index()
             )
