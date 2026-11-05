@@ -573,9 +573,9 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                 if "3. OREB% (Rebot)" in df.columns:
                     try:
                         v = float(row["3. OREB% (Rebot)"])
-                        if v >= 12.0:
+                        if v >= 9.0:
                             css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
-                        elif v <= 4.0:  # 👈 També blau per al 0%
+                        elif v <= 3.0:  # 👈 També blau per al 0%
                             css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_BLUE
                     except Exception:
                         pass
