@@ -396,31 +396,34 @@ METRIC_NAMES_CAT = {
 
 
 def parse_min_to_float(min_val):
-    """Converteix '24:30' o '00:11' a minuts decimals."""
+    """Converteix '24:30', '00:24:30', '24.5' o '24' a minuts decimals purs."""
     try:
-        val_str = str(min_val).strip()
+        if pd.isna(min_val):
+            return 0.0
+        val_str = str(min_val).strip().replace("'", ":").replace('"', '')
         if ":" in val_str:
             parts = val_str.split(":")
-            return float(parts[0]) + float(parts[1]) / 60.0
+            if len(parts) == 2:
+                return float(parts[0]) + float(parts[1]) / 60.0
+            elif len(parts) == 3:
+                return float(parts[0]) * 60.0 + float(parts[1]) + float(parts[2]) / 60.0
         return float(val_str)
     except Exception:
         return 0.0
+
 def parse_fraction(s):
-    """Extreu encerts i intents d'un string tipus '2/3' o '2.0/3.0' de forma segura."""
+    """Extreu encerts i intents d'un string tipus '2/3' o '2.5/5.0' de forma segura."""
     try:
         cleaned = str(s).replace("\u00a0", "").strip()
         parts = cleaned.split("/")
         if len(parts) == 2:
-            return int(float(parts[0])), int(float(parts[1]))
-        return 0, 0
+            return float(parts[0]), float(parts[1])
+        return 0.0, 0.0
     except Exception:
-        return 0, 0
-
-def render_boxscore(df, mode="Tradicional"):
-    """Renderitza el Boxscore adaptant l'alçada automàticament per veure tots els jugadors sense scroll vertical."""
+        return 0.0, 0.0
+def render_boxscore(df, mode="Tradicional", is_per_game=False, is_totals_view=False):
     calc_height = int((len(df) + 1) * 35.5) + 3
     
-    # Configurem l'alineació a la dreta per a les columnes d'intents fraccionaris (A/I)
     col_cfg = {}
     for c in df.columns:
         if "(A/I)" in c or "2a Op" in c or "Transició" in c or "2a Oportunitat" in c:
@@ -430,7 +433,7 @@ def render_boxscore(df, mode="Tradicional"):
                 pass
 
     st.dataframe(
-        style_boxscore(df, mode),
+        style_boxscore(df, mode, is_per_game, is_totals_view),
         height=calc_height,
         use_container_width=True,
         hide_index=True,
@@ -438,7 +441,7 @@ def render_boxscore(df, mode="Tradicional"):
     )
     
 
-def style_boxscore(df_disp, mode="Tradicional"):
+def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_view=False):
     def apply_row_styles(df):
         css_df = pd.DataFrame(
             "text-align: right;", index=df.index, columns=df.columns
@@ -709,6 +712,11 @@ def style_boxscore(df_disp, mode="Tradicional"):
         elif col in ["Plays", "PPP", "VPP"]:
             if df_disp[col].dtype in [float, np.float64]:
                 fmt_dict[col] = "{:.1f}"
+        elif col in ["PPP", "VPP", "VAL/P", "Reb/P", "MIN/P", "PTS/P"]:
+            if df_disp[col].dtype in [float, np.float64]:
+                fmt_dict[col] = "{:.1f}"
+        elif is_per_game and df_disp[col].dtype in [float, np.float64]:
+            fmt_dict[col] = "{:.1f}"
                 
 
     if fmt_dict:
@@ -2822,41 +2830,36 @@ else:
     # -------------------------------------------------------------
     elif active_tab_season == "📋 Box Score":
         comp_box = box_df[box_df["game_id"].astype(str).isin(valid_ids)].copy()
-        comp_lineups = (
-            lineups_df[lineups_df["game_id"].astype(str).isin(valid_ids)].copy()
-        )
+        comp_lineups = lineups_df[lineups_df["game_id"].astype(str).isin(valid_ids)].copy()
 
         if not comp_box.empty and "Name" in comp_box.columns:
-            # 1. Filtrem la fila d'equip en els acumulats
             is_team_row_s = (
-                comp_box["Player"]
-                .astype(str)
-                .str.lower()
-                .str.strip()
-                .isin(
-                    ["team", "totals", "total", "opponent", "rival", "equip"]
-                )
-                | comp_box["Name"]
-                .astype(str)
-                .str.lower()
-                .str.contains("team|total|opponent|equip|rival", na=False)
+                comp_box["Player"].astype(str).str.lower().isin(["team", "totals", "total", "opponent", "rival", "equip"])
+                | comp_box["Name"].astype(str).str.lower().str.contains("team|total|opponent|equip|rival", na=False)
             )
             comp_box = comp_box[~is_team_row_s].copy()
 
-            # 2. Minuts totals per al slider
+            # 1. Convertim els minuts partit a partit
             comp_box["_min_num"] = comp_box["MIN"].apply(parse_min_to_float)
-            player_tot_mins = comp_box.groupby(["Player", "Name"])[
-                "_min_num"
-            ].sum()
-            max_m = (
-                int(player_tot_mins.max()) if not player_tot_mins.empty else 40
-            )
 
-            # 3. Filtre de Minuts a sobre (alineat a l'esquerra)
-            col_b_filt, col_sp = st.columns([1, 2])
+            # Càlcul del màxim real de minuts jugats per un jugador
+            p_mins_tot = comp_box.groupby(["Player", "Name"])["_min_num"].sum()
+            max_m = int(p_mins_tot.max()) if not p_mins_tot.empty else 40
+
+            # 2. Controls: NOU TOGGLE + SLIDER CORREGIT
+            col_calc_mode, col_b_filt = st.columns([1.2, 1.8])
+            with col_calc_mode:
+                calc_mode = st.segmented_control(
+                    "Format de Dades",
+                    options=["Totals Acumulats", "Mitjanes per Partit"],
+                    default="Totals Acumulats",
+                    key="season_calc_mode_toggle",
+                )
+                is_pg = (calc_mode == "Mitjanes per Partit")
+
             with col_b_filt:
                 min_m_filt = st.slider(
-                    "⏱️ Minuts mínims (Temporada)",
+                    f"⏱️ Minuts totals mínims a la temporada (0 a {max_m})",
                     min_value=0,
                     max_value=max(max_m, 10),
                     value=0,
@@ -2864,86 +2867,41 @@ else:
                     key="season_box_min_slider",
                 )
 
-            # 4. Selector de pastilles (NOMÉS UNA SOLA VEGADA)
             box_mode_s = st.segmented_control(
                 "Tipus d'Estadística Acumulada",
-                options=[
-                    "Tradicional",
-                    "Tir per Zones",
-                    "4 Factors Individuals",
-                    "Accions Defensives",
-                    "Impacte i Context",
-                    "Xarxa d'Assistències",
-                    "Rebot i 2a Oportunitat",
-                ],
+                options=["Tradicional", "Tir per Zones", "4 Factors Individuals", "Accions Defensives", "Impacte i Context", "Xarxa d'Assistències", "Rebot i 2a Oportunitat"],
                 default="Tradicional",
                 key="box_mode_selector_season",
             )
-
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # 5. Filtratge de jugadors segons el slider
-            valid_players = player_tot_mins[
-                player_tot_mins >= min_m_filt
-            ].index.tolist()
-            comp_box_f = comp_box[
-                comp_box.set_index(["Player", "Name"]).index.isin(valid_players)
-            ].copy()
-            # Agrupació utilitzant el conjunt de dades filtrat
+            # 3. Agrupació incloent MIN_TOT
             p_agg = (
-                comp_box_f.groupby(["Player", "Name"])
+                comp_box.groupby(["Player", "Name"])
                 .agg(
                     PJ=("game_id", "nunique"),
+                    MIN_TOT=("_min_num", "sum"),
                     PTS=("Points", "sum"),
-                    PPP=("Points", "mean"),
                     T2M=("2PM", "sum"),
                     T2A=("2PA", "sum"),
                     T3M=("3PM", "sum"),
                     T3A=("3PA", "sum"),
                     FTM=("FTM", "sum"),
                     FTA=("FTA", "sum"),
-                    RIM_M=("RIM(M)", "sum")
-                    if "RIM(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    RIM_A=("RIM(A)", "sum")
-                    if "RIM(A)" in comp_box.columns
-                    else ("Points", "count"),
-                    PAINT_M=("PAINT(M)", "sum")
-                    if "PAINT(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    PAINT_A=("PAINT(A)", "sum")
-                    if "PAINT(A)" in comp_box.columns
-                    else ("Points", "count"),
-                    MR_M=("MR(M)", "sum")
-                    if "MR(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    MR_A=("MR(A)", "sum")
-                    if "MR(A)" in comp_box.columns
-                    else ("Points", "count"),
-                    C3_M=("C3(M)", "sum")
-                    if "C3(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    C3_A=("C3(A)", "sum")
-                    if "C3(A)" in comp_box.columns
-                    else ("Points", "count"),
-                    ATB3_M=("ATB3(M)", "sum")
-                    if "ATB3(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    ATB3_A=("ATB3(A)", "sum")
-                    if "ATB3(A)" in comp_box.columns
-                    else ("Points", "count"),
-                    FBM=("FB(M)", "sum")
-                    if "FB(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    FBMiss=("FB(Miss)", "sum")
-                    if "FB(Miss)" in comp_box.columns
-                    else ("Points", "count"),
-                    Ch2M=("2ndCh(M)", "sum")
-                    if "2ndCh(M)" in comp_box.columns
-                    else ("Points", "count"),
-                    Ch2Miss=("2ndCh(Miss)", "sum")
-                    if "2ndCh(Miss)" in comp_box.columns
-                    else ("Points", "count"),
+                    RIM_M=("RIM(M)", "sum") if "RIM(M)" in comp_box.columns else ("Points", "count"),
+                    RIM_A=("RIM(A)", "sum") if "RIM(A)" in comp_box.columns else ("Points", "count"),
+                    PAINT_M=("PAINT(M)", "sum") if "PAINT(M)" in comp_box.columns else ("Points", "count"),
+                    PAINT_A=("PAINT(A)", "sum") if "PAINT(A)" in comp_box.columns else ("Points", "count"),
+                    MR_M=("MR(MR)", "sum") if "MR(M)" in comp_box.columns else ("Points", "count"),
+                    MR_A=("MR(A)", "sum") if "MR(A)" in comp_box.columns else ("Points", "count"),
+                    C3_M=("C3(M)", "sum") if "C3(M)" in comp_box.columns else ("Points", "count"),
+                    C3_A=("C3(A)", "sum") if "C3(A)" in comp_box.columns else ("Points", "count"),
+                    ATB3_M=("ATB3(M)", "sum") if "ATB3(M)" in comp_box.columns else ("Points", "count"),
+                    ATB3_A=("ATB3(A)", "sum") if "ATB3(A)" in comp_box.columns else ("Points", "count"),
+                    FBM=("FB(M)", "sum") if "FB(M)" in comp_box.columns else ("Points", "count"),
+                    FBMiss=("FB(Miss)", "sum") if "FB(Miss)" in comp_box.columns else ("Points", "count"),
+                    Ch2M=("2ndCh(M)", "sum") if "2ndCh(M)" in comp_box.columns else ("Points", "count"),
+                    Ch2Miss=("2ndCh(Miss)", "sum") if "2ndCh(Miss)" in comp_box.columns else ("Points", "count"),
                     REB_O=("Off Reb", "sum"),
                     REB_D=("Def Reb", "sum"),
                     AST=("Assists", "sum"),
@@ -2952,144 +2910,147 @@ else:
                     PER=("Turnovers", "sum"),
                     FAL=("Fouls", "sum"),
                     F_REC=("Fouls Drawn", "sum"),
-                    STOCKS=("Stocks", "sum")
-                    if "Stocks" in comp_box.columns
-                    else ("Steals", "sum"),
-                    DEFL=("Deflections", "sum")
-                    if "Deflections" in comp_box.columns
-                    else ("Points", "count"),
                 )
                 .reset_index()
             )
+
+            # 4. FILTRE DIRECTE SOBRE LA TAULA FINAL (Això soluciona el problema de l'Armando)
+            p_agg = p_agg[p_agg["MIN_TOT"] >= min_m_filt].reset_index(drop=True)
+
+            # Taula filtrada per a passar a funcions auxiliars externes
+            valid_p_set = set(zip(p_agg["Player"].astype(str), p_agg["Name"].astype(str)))
+            comp_box_filtered = comp_box[comp_box.apply(lambda r: (str(r["Player"]), str(r["Name"])) in valid_p_set, axis=1)].copy()
 
             if box_mode_s == "Tradicional":
                 df_trad_s = pd.DataFrame()
                 df_trad_s["#"] = p_agg["Player"]
                 df_trad_s["Jugador"] = p_agg["Name"]
                 df_trad_s["PJ"] = p_agg["PJ"].astype(int)
-                
-                pts = pd.to_numeric(p_agg["PTS"], errors="coerce").fillna(0).astype(int)
-                df_trad_s["PTS"] = pts
-                df_trad_s["PPP"] = (pts / p_agg["PJ"].replace(0, np.nan)).fillna(0.0)
 
-                t2m = pd.to_numeric(p_agg["T2M"], errors="coerce").fillna(0).astype(int)
-                t2a = pd.to_numeric(p_agg["T2A"], errors="coerce").fillna(0).astype(int)
-                df_trad_s["T2 (A/I)"] = t2m.astype(str) + "/" + t2a.astype(str)
+                pj = p_agg["PJ"].replace(0, np.nan)
+                
+                if is_pg:
+                    df_trad_s["MIN/P"] = (p_agg["MIN_TOT"] / pj).round(1)
+                else:
+                    df_trad_s["MIN"] = p_agg["MIN_TOT"].round(1)
+
+                pts = pd.to_numeric(p_agg["PTS"], errors="coerce").fillna(0)
+                if is_pg:
+                    df_trad_s["PTS/P"] = (pts / pj).round(1)
+                else:
+                    df_trad_s["PTS"] = pts.astype(int)
+                    df_trad_s["PPP"] = (pts / pj).fillna(0.0).round(1)
+
+                t2m = pd.to_numeric(p_agg["T2M"], errors="coerce").fillna(0)
+                t2a = pd.to_numeric(p_agg["T2A"], errors="coerce").fillna(0)
+                if is_pg:
+                    df_trad_s["T2 (A/I)"] = (t2m / pj).round(1).astype(str) + "/" + (t2a / pj).round(1).astype(str)
+                else:
+                    df_trad_s["T2 (A/I)"] = t2m.astype(int).astype(str) + "/" + t2a.astype(int).astype(str)
                 df_trad_s["%T2"] = ((t2m / t2a.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                t3m = pd.to_numeric(p_agg["T3M"], errors="coerce").fillna(0).astype(int)
-                t3a = pd.to_numeric(p_agg["T3A"], errors="coerce").fillna(0).astype(int)
-                df_trad_s["T3 (A/I)"] = t3m.astype(str) + "/" + t3a.astype(str)
+                t3m = pd.to_numeric(p_agg["T3M"], errors="coerce").fillna(0)
+                t3a = pd.to_numeric(p_agg["T3A"], errors="coerce").fillna(0)
+                if is_pg:
+                    df_trad_s["T3 (A/I)"] = (t3m / pj).round(1).astype(str) + "/" + (t3a / pj).round(1).astype(str)
+                else:
+                    df_trad_s["T3 (A/I)"] = t3m.astype(int).astype(str) + "/" + t3a.astype(int).astype(str)
                 df_trad_s["%T3"] = ((t3m / t3a.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                ftm = pd.to_numeric(p_agg["FTM"], errors="coerce").fillna(0).astype(int)
-                fta = pd.to_numeric(p_agg["FTA"], errors="coerce").fillna(0).astype(int)
-                df_trad_s["TL (A/I)"] = ftm.astype(str) + "/" + fta.astype(str)
+                ftm = pd.to_numeric(p_agg["FTM"], errors="coerce").fillna(0)
+                fta = pd.to_numeric(p_agg["FTA"], errors="coerce").fillna(0)
+                if is_pg:
+                    df_trad_s["TL (A/I)"] = (ftm / pj).round(1).astype(str) + "/" + (fta / pj).round(1).astype(str)
+                else:
+                    df_trad_s["TL (A/I)"] = ftm.astype(int).astype(str) + "/" + fta.astype(int).astype(str)
                 df_trad_s["%TL"] = ((ftm / fta.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                reb_o = pd.to_numeric(p_agg["REB_O"], errors="coerce").fillna(0).astype(int)
-                reb_d = pd.to_numeric(p_agg["REB_D"], errors="coerce").fillna(0).astype(int)
+                reb_o = pd.to_numeric(p_agg["REB_O"], errors="coerce").fillna(0)
+                reb_d = pd.to_numeric(p_agg["REB_D"], errors="coerce").fillna(0)
                 reb_t = reb_o + reb_d
-                df_trad_s["REB_O"] = reb_o
-                df_trad_s["REB_D"] = reb_d
-                df_trad_s["REB_T"] = reb_t
+                ast = pd.to_numeric(p_agg["AST"], errors="coerce").fillna(0)
+                rec = pd.to_numeric(p_agg["REC"], errors="coerce").fillna(0)
+                tap = pd.to_numeric(p_agg["TAP"], errors="coerce").fillna(0)
+                per = pd.to_numeric(p_agg["PER"], errors="coerce").fillna(0)
+                fal = pd.to_numeric(p_agg["FAL"], errors="coerce").fillna(0)
+                f_rec = pd.to_numeric(p_agg["F_REC"], errors="coerce").fillna(0)
 
-                ast = pd.to_numeric(p_agg["AST"], errors="coerce").fillna(0).astype(int)
-                rec = pd.to_numeric(p_agg["REC"], errors="coerce").fillna(0).astype(int)
-                tap = pd.to_numeric(p_agg["TAP"], errors="coerce").fillna(0).astype(int)
-                per = pd.to_numeric(p_agg["PER"], errors="coerce").fillna(0).astype(int)
-                fal = pd.to_numeric(p_agg["FAL"], errors="coerce").fillna(0).astype(int)
-                f_rec = pd.to_numeric(p_agg["F_REC"], errors="coerce").fillna(0).astype(int)
+                if is_pg:
+                    df_trad_s["REB_O"] = (reb_o / pj).round(1)
+                    df_trad_s["REB_D"] = (reb_d / pj).round(1)
+                    df_trad_s["REB_T"] = (reb_t / pj).round(1)
+                    df_trad_s["AST"] = (ast / pj).round(1)
+                    df_trad_s["REC"] = (rec / pj).round(1)
+                    df_trad_s["TAP"] = (tap / pj).round(1)
+                    df_trad_s["PER"] = (per / pj).round(1)
+                    df_trad_s["FAL"] = (fal / pj).round(1)
+                    df_trad_s["F_REC"] = (f_rec / pj).round(1)
+                else:
+                    df_trad_s["REB_O"] = reb_o.astype(int)
+                    df_trad_s["REB_D"] = reb_d.astype(int)
+                    df_trad_s["REB_T"] = reb_t.astype(int)
+                    df_trad_s["AST"] = ast.astype(int)
+                    df_trad_s["REC"] = rec.astype(int)
+                    df_trad_s["TAP"] = tap.astype(int)
+                    df_trad_s["PER"] = per.astype(int)
+                    df_trad_s["FAL"] = fal.astype(int)
+                    df_trad_s["F_REC"] = f_rec.astype(int)
 
-                df_trad_s["AST"] = ast
-                df_trad_s["REC"] = rec
-                df_trad_s["TAP"] = tap
-                df_trad_s["PER"] = per
-                df_trad_s["FAL"] = fal
-                df_trad_s["F_REC"] = f_rec
-
-                # VALORACIÓ TOTAL I VALORACIÓ PER PARTIT (VPP)
                 positius = pts + reb_t + ast + rec + tap + f_rec
                 negatius = (t2a - t2m) + (t3a - t3m) + (fta - ftm) + per + fal
-                val_tot = (positius - negatius).astype(int)
-                df_trad_s["VAL"] = val_tot
-                df_trad_s["VPP"] = (val_tot / p_agg["PJ"].replace(0, np.nan)).fillna(0.0)
+                val_tot = positius - negatius
+                if is_pg:
+                    df_trad_s["VAL/P"] = (val_tot / pj).fillna(0.0).round(1)
+                else:
+                    df_trad_s["VAL"] = val_tot.astype(int)
+                    df_trad_s["VPP"] = (val_tot / pj).fillna(0.0).round(1)
 
-                df_trad_s["_dorsal_sort"] = (
-                    df_trad_s["#"].astype(str).str.replace("#", "").str.strip()
-                )
-                df_trad_s["_dorsal_sort"] = pd.to_numeric(
-                    df_trad_s["_dorsal_sort"], errors="coerce"
-                ).fillna(999)
-                df_sorted = (
-                    df_trad_s.sort_values(by="_dorsal_sort", ascending=True)
-                    .drop(columns=["_dorsal_sort"])
-                    .reset_index(drop=True)
-                )
-
-                render_boxscore(df_sorted, "Tradicional")
+                df_trad_s["_dorsal_sort"] = pd.to_numeric(df_trad_s["#"].astype(str).str.replace("#", "").str.strip(), errors="coerce").fillna(999)
+                df_sorted = df_trad_s.sort_values(by="_dorsal_sort", ascending=True).drop(columns=["_dorsal_sort"]).reset_index(drop=True)
+                render_boxscore(df_sorted, "Tradicional", is_per_game=is_pg, is_totals_view=(not is_pg))
                 
             elif box_mode_s == "Tir per Zones":
                 df_shots_s = pd.DataFrame()
                 df_shots_s["#"] = p_agg["Player"]
                 df_shots_s["Jugador"] = p_agg["Name"]
                 df_shots_s["PJ"] = p_agg["PJ"].astype(int)
-                df_shots_s["PTS"] = p_agg["PTS"].astype(int)
+                pj = p_agg["PJ"].replace(0, np.nan)
 
-                # Neteja de fraccions (sense .0)
-                df_shots_s["Aro (Rim)"] = (
-                    p_agg["RIM_M"].astype(int).astype(str)
-                    + "/"
-                    + p_agg["RIM_A"].astype(int).astype(str)
-                )
-                df_shots_s["Pintura (Paint)"] = (
-                    p_agg["PAINT_M"].astype(int).astype(str)
-                    + "/"
-                    + p_agg["PAINT_A"].astype(int).astype(str)
-                )
-                df_shots_s["Mitja Distància (MR)"] = (
-                    p_agg["MR_M"].astype(int).astype(str)
-                    + "/"
-                    + p_agg["MR_A"].astype(int).astype(str)
-                )
-                df_shots_s["Triple Cantonada (C3)"] = (
-                    p_agg["C3_M"].astype(int).astype(str)
-                    + "/"
-                    + p_agg["C3_A"].astype(int).astype(str)
-                )
-                df_shots_s["Triple Frontal (ATB3)"] = (
-                    p_agg["ATB3_M"].astype(int).astype(str)
-                    + "/"
-                    + p_agg["ATB3_A"].astype(int).astype(str)
-                )
+                if is_pg:
+                    df_shots_s["PTS/P"] = (pd.to_numeric(p_agg["PTS"], errors="coerce").fillna(0) / pj).round(1)
+                    df_shots_s["Aro (Rim)"] = (p_agg["RIM_M"] / pj).round(1).astype(str) + "/" + (p_agg["RIM_A"] / pj).round(1).astype(str)
+                    df_shots_s["Pintura (Paint)"] = (p_agg["PAINT_M"] / pj).round(1).astype(str) + "/" + (p_agg["PAINT_A"] / pj).round(1).astype(str)
+                    df_shots_s["Mitja Distància (MR)"] = (p_agg["MR_M"] / pj).round(1).astype(str) + "/" + (p_agg["MR_A"] / pj).round(1).astype(str)
+                    df_shots_s["Triple Cantonada (C3)"] = (p_agg["C3_M"] / pj).round(1).astype(str) + "/" + (p_agg["C3_A"] / pj).round(1).astype(str)
+                    df_shots_s["Triple Frontal (ATB3)"] = (p_agg["ATB3_M"] / pj).round(1).astype(str) + "/" + (p_agg["ATB3_A"] / pj).round(1).astype(str)
+                else:
+                    df_shots_s["PTS"] = p_agg["PTS"].astype(int)
+                    df_shots_s["Aro (Rim)"] = p_agg["RIM_M"].astype(int).astype(str) + "/" + p_agg["RIM_A"].astype(int).astype(str)
+                    df_shots_s["Pintura (Paint)"] = p_agg["PAINT_M"].astype(int).astype(str) + "/" + p_agg["PAINT_A"].astype(int).astype(str)
+                    df_shots_s["Mitja Distància (MR)"] = p_agg["MR_M"].astype(int).astype(str) + "/" + p_agg["MR_A"].astype(int).astype(str)
+                    df_shots_s["Triple Cantonada (C3)"] = p_agg["C3_M"].astype(int).astype(str) + "/" + p_agg["C3_A"].astype(int).astype(str)
+                    df_shots_s["Triple Frontal (ATB3)"] = p_agg["ATB3_M"].astype(int).astype(str) + "/" + p_agg["ATB3_A"].astype(int).astype(str)
 
-                # Ordenar per dorsal numèric (#1, #7, #8, #9, #11...)
-                df_shots_s["_dorsal_sort"] = (
-                    df_shots_s["#"].astype(str).str.replace("#", "").str.strip()
-                )
-                df_shots_s["_dorsal_sort"] = pd.to_numeric(
-                    df_shots_s["_dorsal_sort"], errors="coerce"
-                ).fillna(999)
-
-                df_sorted = (
-                    df_shots_s.sort_values(by="_dorsal_sort", ascending=True)
-                    .drop(columns=["_dorsal_sort"])
-                    .reset_index(drop=True)
-                )
-
-                render_boxscore(df_sorted, "Zones")
+                df_shots_s["_dorsal_sort"] = pd.to_numeric(df_shots_s["#"].astype(str).str.replace("#", "").str.strip(), errors="coerce").fillna(999)
+                df_sorted = df_shots_s.sort_values(by="_dorsal_sort", ascending=True).drop(columns=["_dorsal_sort"]).reset_index(drop=True)
+                render_boxscore(df_sorted, "Zones", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "4 Factors Individuals":
-                df_4f_s = get_individual_four_factors(
-                    comp_box, comp_lineups, comp_pbp, game_id=None
-                )
+                # Usem comp_box_filtered perquè respecti el slider de minuts
+                df_4f_s = get_individual_four_factors(comp_box_filtered, comp_lineups, comp_pbp, game_id=None)
                 render_boxscore(df_4f_s, "4Factors")
 
             elif box_mode_s == "Accions Defensives":
-                df_def_s = get_defensive_actions(
-                    comp_box, comp_pbp, game_id=None
-                )
-                render_boxscore(df_def_s, "Defensa")
+                df_def_s = get_defensive_actions(comp_box_filtered, comp_pbp, game_id=None)
+                if not df_def_s.empty and is_pg:
+                    pj_map = p_agg.set_index(["Player", "Name"])["PJ"].to_dict()
+                    for col in df_def_s.columns:
+                        if col not in ["#", "Jugador", "MIN"] and pd.api.types.is_numeric_dtype(df_def_s[col]):
+                            df_def_s[col] = [
+                                round(val / pj_map.get((r["#"], r["Jugador"]), 1), 1)
+                                for val, (_, r) in zip(df_def_s[col], df_def_s.iterrows())
+                            ]
+                render_boxscore(df_def_s, "Defensa", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "Impacte i Context":
                 df_ctx_s = pd.DataFrame()
@@ -3097,80 +3058,47 @@ else:
                 df_ctx_s["Jugador"] = p_agg["Name"]
                 df_ctx_s["PJ"] = p_agg["PJ"].astype(int)
 
-                # Neteja de fraccions a enters purs (ex: 1/5, 2/2)
-                fbm_int = (
-                    pd.to_numeric(p_agg["FBM"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                fbtot_int = (
-                    pd.to_numeric(
-                        p_agg["FBM"] + p_agg["FBMiss"], errors="coerce"
-                    )
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_ctx_s["Transició"] = (
-                    fbm_int.astype(str) + "/" + fbtot_int.astype(str)
-                )
+                pj = p_agg["PJ"].replace(0, np.nan)
+                fbm = pd.to_numeric(p_agg["FBM"], errors="coerce").fillna(0)
+                fbtot = pd.to_numeric(p_agg["FBM"] + p_agg["FBMiss"], errors="coerce").fillna(0)
+                ch2m = pd.to_numeric(p_agg["Ch2M"], errors="coerce").fillna(0)
+                ch2tot = pd.to_numeric(p_agg["Ch2M"] + p_agg["Ch2Miss"], errors="coerce").fillna(0)
 
-                ch2m_int = (
-                    pd.to_numeric(p_agg["Ch2M"], errors="coerce")
-                    .fillna(0)
-                    .astype(int)
-                )
-                ch2tot_int = (
-                    pd.to_numeric(
-                        p_agg["Ch2M"] + p_agg["Ch2Miss"], errors="coerce"
-                    )
-                    .fillna(0)
-                    .astype(int)
-                )
-                df_ctx_s["2a Oportunitat"] = (
-                    ch2m_int.astype(str) + "/" + ch2tot_int.astype(str)
-                )
-
-                df_ctx_s["PER Totals"] = p_agg["PER"].astype(int)
+                if is_pg:
+                    df_ctx_s["Transició"] = (fbm / pj).round(1).astype(str) + "/" + (fbtot / pj).round(1).astype(str)
+                    df_ctx_s["2a Oportunitat"] = (ch2m / pj).round(1).astype(str) + "/" + (ch2tot / pj).round(1).astype(str)
+                    df_ctx_s["PER/P"] = (pd.to_numeric(p_agg["PER"], errors="coerce").fillna(0) / pj).round(1)
+                else:
+                    df_ctx_s["Transició"] = fbm.astype(int).astype(str) + "/" + fbtot.astype(int).astype(str)
+                    df_ctx_s["2a Oportunitat"] = ch2m.astype(int).astype(str) + "/" + ch2tot.astype(int).astype(str)
+                    df_ctx_s["PER Totals"] = p_agg["PER"].astype(int)
 
                 if "LTO" in comp_box.columns:
-                    lto_map = (
-                        comp_box.groupby(["Player", "Name"])["LTO"]
-                        .sum()
-                        .to_dict()
-                    )
-                    df_ctx_s["Vives (LTO)"] = [
-                        int(lto_map.get((r["Player"], r["Name"]), 0))
-                        for _, r in p_agg.iterrows()
-                    ]
+                    lto_map = comp_box.groupby(["Player", "Name"])["LTO"].sum().to_dict()
+                    vals_lto = [lto_map.get((r["Player"], r["Name"]), 0) for _, r in p_agg.iterrows()]
+                    if is_pg:
+                        df_ctx_s["LTO/P"] = (pd.Series(vals_lto) / p_agg["PJ"].values).round(1)
+                    else:
+                        df_ctx_s["Vives (LTO)"] = [int(v) for v in vals_lto]
+
                 if "DTO" in comp_box.columns:
-                    dto_map = (
-                        comp_box.groupby(["Player", "Name"])["DTO"]
-                        .sum()
-                        .to_dict()
-                    )
-                    df_ctx_s["Mortes (DTO)"] = [
-                        int(dto_map.get((r["Player"], r["Name"]), 0))
-                        for _, r in p_agg.iterrows()
-                    ]
+                    dto_map = comp_box.groupby(["Player", "Name"])["DTO"].sum().to_dict()
+                    vals_dto = [dto_map.get((r["Player"], r["Name"]), 0) for _, r in p_agg.iterrows()]
+                    if is_pg:
+                        df_ctx_s["DTO/P"] = (pd.Series(vals_dto) / p_agg["PJ"].values).round(1)
+                    else:
+                        df_ctx_s["Mortes (DTO)"] = [int(v) for v in vals_dto]
 
-                df_ctx_s["Faltes Com."] = p_agg["FAL"].astype(int)
-                df_ctx_s["Faltes Reb."] = p_agg["F_REC"].astype(int)
+                if is_pg:
+                    df_ctx_s["Faltes Com./P"] = (pd.to_numeric(p_agg["FAL"], errors="coerce").fillna(0) / pj).round(1)
+                    df_ctx_s["Faltes Reb./P"] = (pd.to_numeric(p_agg["F_REC"], errors="coerce").fillna(0) / pj).round(1)
+                else:
+                    df_ctx_s["Faltes Com."] = p_agg["FAL"].astype(int)
+                    df_ctx_s["Faltes Reb."] = p_agg["F_REC"].astype(int)
 
-                # Ordenar per dorsal numèric (#1, #7, #8...)
-                df_ctx_s["_dorsal_sort"] = (
-                    df_ctx_s["#"].astype(str).str.replace("#", "").str.strip()
-                )
-                df_ctx_s["_dorsal_sort"] = pd.to_numeric(
-                    df_ctx_s["_dorsal_sort"], errors="coerce"
-                ).fillna(999)
-
-                df_sorted = (
-                    df_ctx_s.sort_values(by="_dorsal_sort", ascending=True)
-                    .drop(columns=["_dorsal_sort"])
-                    .reset_index(drop=True)
-                )
-
-                render_boxscore(df_sorted, "Context")
+                df_ctx_s["_dorsal_sort"] = pd.to_numeric(df_ctx_s["#"].astype(str).str.replace("#", "").str.strip(), errors="coerce").fillna(999)
+                df_sorted = df_ctx_s.sort_values(by="_dorsal_sort", ascending=True).drop(columns=["_dorsal_sort"]).reset_index(drop=True)
+                render_boxscore(df_sorted, "Context", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "Xarxa d'Assistències":
                 df_rank_s, df_creadors_s, _ = get_assist_combos(
@@ -3242,41 +3170,47 @@ else:
                 df_reb_s["Jugador"] = p_agg["Name"]
                 df_reb_s["PJ"] = p_agg["PJ"].astype(int)
 
-                reb_o_s = p_agg["REB_O"].astype(int)
-                reb_d_s = p_agg["REB_D"].astype(int)
+                pj = p_agg["PJ"].replace(0, np.nan)
+                reb_o_s = pd.to_numeric(p_agg["REB_O"], errors="coerce").fillna(0)
+                reb_d_s = pd.to_numeric(p_agg["REB_D"], errors="coerce").fillna(0)
                 reb_t_s = reb_o_s + reb_d_s
-                df_reb_s["REB_O"] = reb_o_s
-                df_reb_s["REB_D"] = reb_d_s
-                df_reb_s["REB_T"] = reb_t_s
-                df_reb_s["Reb/P"] = (reb_t_s / p_agg["PJ"].replace(0, np.nan)).fillna(0.0)
 
-                # Càlcul OREB% acumulat i REB/Min
-                p_mins_map = comp_box.groupby(["Player", "Name"])["_min_num"].sum().to_dict()
-                p_mp_s = p_agg.apply(lambda r: p_mins_map.get((r["Player"], r["Name"]), 0.0), axis=1)
+                if is_pg:
+                    df_reb_s["REB_O"] = (reb_o_s / pj).round(1)
+                    df_reb_s["REB_D"] = (reb_d_s / pj).round(1)
+                    df_reb_s["REB_T"] = (reb_t_s / pj).round(1)
+                else:
+                    df_reb_s["REB_O"] = reb_o_s.astype(int)
+                    df_reb_s["REB_D"] = reb_d_s.astype(int)
+                    df_reb_s["REB_T"] = reb_t_s.astype(int)
+                    df_reb_s["Reb/P"] = (reb_t_s / pj).fillna(0.0).round(1)
+
+                p_mp_s = p_agg["MIN_TOT"].values
                 t_mp_s = float(comp_box["_min_num"].sum())
                 t_or_s = float(comp_box["Off Reb"].sum())
-                opp_dr_s = float(pd.to_numeric(comp_lineups["DREB_Agn"], errors="coerce").fillna(0).sum()) if not comp_lineups.empty else (t_or_s * 1.5)
+                opp_dr_s = float(pd.to_numeric(comp_lineups.get("DREB_Agn", 0), errors="coerce").fillna(0).sum()) if not comp_lineups.empty else (t_or_s * 1.5)
 
                 orb_denom_s = p_mp_s * (t_or_s + opp_dr_s)
-                df_reb_s["OREB%"] = np.where(
-                    (p_mp_s > 0) & (orb_denom_s > 0),
-                    100.0 * (reb_o_s * (t_mp_s / 5.0)) / orb_denom_s,
-                    0.0
-                )
+                df_reb_s["OREB%"] = np.where((p_mp_s > 0) & (orb_denom_s > 0), 100.0 * (reb_o_s * (t_mp_s / 5.0)) / orb_denom_s, 0.0)
                 df_reb_s["REB/Min"] = np.round(np.where(p_mp_s > 0, reb_t_s / p_mp_s, 0.0), 2)
 
-                # Segona Oportunitat
-                ch2_m_s = pd.to_numeric(p_agg.get("Ch2M", 0), errors="coerce").fillna(0).astype(int)
-                ch2_miss_s = pd.to_numeric(p_agg.get("Ch2Miss", 0), errors="coerce").fillna(0).astype(int)
+                ch2_m_s = pd.to_numeric(p_agg.get("Ch2M", 0), errors="coerce").fillna(0)
+                ch2_miss_s = pd.to_numeric(p_agg.get("Ch2Miss", 0), errors="coerce").fillna(0)
                 ch2_tot_s = ch2_m_s + ch2_miss_s
 
-                df_reb_s["2a Op. (A/I)"] = [f"{m}/{tot}".rjust(10, '\u00A0') for m, tot in zip(ch2_m_s, ch2_tot_s)]
-                df_reb_s["Pts 2a Op."] = ch2_m_s * 2
-                df_reb_s["Fallades 2a Op."] = ch2_miss_s
+                if is_pg:
+                    df_reb_s["2a Op. (A/I)"] = (ch2_m_s / pj).round(1).astype(str) + "/" + (ch2_tot_s / pj).round(1).astype(str)
+                    df_reb_s["Pts 2a Op."] = (ch2_m_s * 2 / pj).round(1)
+                    df_reb_s["Fallades 2a Op."] = (ch2_miss_s / pj).round(1)
+                else:
+                    df_reb_s["2a Op. (A/I)"] = [f"{int(m)}/{int(tot)}" for m, tot in zip(ch2_m_s, ch2_tot_s)]
+                    df_reb_s["Pts 2a Op."] = (ch2_m_s * 2).astype(int)
+                    df_reb_s["Fallades 2a Op."] = ch2_miss_s.astype(int)
+
                 df_reb_s["% 2a Op."] = ((ch2_m_s / ch2_tot_s.replace(0, np.nan)) * 100.0).fillna(0.0)
 
                 df_sorted = df_reb_s.sort_values(by=["REB_T", "REB_O"], ascending=False).reset_index(drop=True)
-                render_boxscore(df_sorted, "Rebot")
+                render_boxscore(df_sorted, "Rebot", is_per_game=is_pg, is_totals_view=(not is_pg))
         else:
             st.info("No hi ha dades acumulades de Boxscore disponibles.")
     # -------------------------------------------------------------

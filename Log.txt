@@ -29,3 +29,5 @@ v1.8
 v1.9
 Format correcte per mòbil
 Afegir PER
+Bug filtre minuts
+Afegim dades per partit a l'acumulats
