@@ -443,9 +443,7 @@ def render_boxscore(df, mode="Tradicional", is_per_game=False, is_totals_view=Fa
 
 def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_view=False):
     def apply_row_styles(df):
-        css_df = pd.DataFrame(
-            "text-align: right;", index=df.index, columns=df.columns
-        )
+        css_df = pd.DataFrame("text-align: right;", index=df.index, columns=df.columns)
 
         for col_name in ["Jugador", "Passador", "Anotador", "Mètrica"]:
             if col_name in df.columns:
@@ -456,268 +454,208 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
         for i in df.index:
             row = df.loc[i]
 
-            # 1. Tradicional
+            # Obtenir PJ del jugador per escalar si estem en totals acumulats
+            pj_val = 1.0
+            if "PJ" in df.columns:
+                try:
+                    pj_val = max(float(row["PJ"]), 1.0)
+                except Exception:
+                    pj_val = 1.0
+
+            # -------------------------------------------------------------
+            # 1. TRADICIONAL
+            # -------------------------------------------------------------
             if mode == "Tradicional":
-                if "%T2" in df.columns and "T2 (A/I)" in df.columns:
-                    m, a = parse_fraction(row["T2 (A/I)"])
-                    if a >= 2:
-                        pct = (m / a) * 100
-                        if pct >= 70:
-                            css_df.loc[i, "%T2"] = STYLE_RED
-                        elif pct <= 25:
-                            css_df.loc[i, "%T2"] = STYLE_BLUE
+                # Mínim d'intents segons el mode
+                if is_per_game:
+                    min_att = 0.8
+                elif is_totals_view:
+                    min_att = 2.0 * pj_val
+                else:
+                    min_att = 2.0
 
-                if "%T3" in df.columns and "T3 (A/I)" in df.columns:
-                    m, a = parse_fraction(row["T3 (A/I)"])
-                    if a >= 2:
-                        pct = (m / a) * 100
-                        if pct >= 50:
-                            css_df.loc[i, "%T3"] = STYLE_RED
-                        elif pct <= 20:
-                            css_df.loc[i, "%T3"] = STYLE_BLUE
+                for shot_pct, shot_ai in [("%T2", "T2 (A/I)"), ("%T3", "T3 (A/I)"), ("%TL", "TL (A/I)")]:
+                    if shot_pct in df.columns and shot_ai in df.columns:
+                        m, a = parse_fraction(row[shot_ai])
+                        if a >= min_att:
+                            pct = (m / a) * 100.0 if a > 0 else 0.0
+                            if shot_pct == "%T2":
+                                if pct >= 65.0: css_df.loc[i, "%T2"] = STYLE_RED
+                                elif pct <= 30.0: css_df.loc[i, "%T2"] = STYLE_BLUE
+                            elif shot_pct == "%T3":
+                                if pct >= 45.0: css_df.loc[i, "%T3"] = STYLE_RED
+                                elif pct <= 20.0: css_df.loc[i, "%T3"] = STYLE_BLUE
+                            elif shot_pct == "%TL":
+                                if pct >= 80.0: css_df.loc[i, "%TL"] = STYLE_RED
+                                elif pct <= 45.0: css_df.loc[i, "%TL"] = STYLE_BLUE
 
-                if "%TL" in df.columns and "TL (A/I)" in df.columns:
-                    m, a = parse_fraction(row["TL (A/I)"])
-                    if a >= 2:
-                        pct = (m / a) * 100
-                        if pct >= 85:
-                            css_df.loc[i, "%TL"] = STYLE_RED
-                        elif pct <= 40:
-                            css_df.loc[i, "%TL"] = STYLE_BLUE
+                # Llindars dinàmics de volum (rebots, assistències, etc.)
+                reb_limit = (6.0 * pj_val) if is_totals_view else 6.0
+                ast_limit = (3.5 * pj_val) if is_totals_view else 3.5
+                rec_limit = (2.0 * pj_val) if is_totals_view else 2.0
+                per_limit = (2.5 * pj_val) if is_totals_view else 2.5
 
                 if "REB_T" in df.columns:
                     try:
-                        if float(row["REB_T"]) >= 6:
-                            css_df.loc[i, "REB_T"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["REB_T"]) >= reb_limit: css_df.loc[i, "REB_T"] = STYLE_RED
+                    except Exception: pass
+
                 if "AST" in df.columns:
                     try:
-                        if float(row["AST"]) >= 4:
-                            css_df.loc[i, "AST"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["AST"]) >= ast_limit: css_df.loc[i, "AST"] = STYLE_RED
+                    except Exception: pass
+
                 if "REC" in df.columns:
                     try:
-                        if float(row["REC"]) >= 3:
-                            css_df.loc[i, "REC"] = STYLE_RED
-                    except Exception:
-                        pass
-                if "PER" in df.columns:
-                    try:
-                        if float(row["PER"]) >= 3:
-                            css_df.loc[i, "PER"] = STYLE_BLUE
-                    except Exception:
-                        pass
+                        if float(row["REC"]) >= rec_limit: css_df.loc[i, "REC"] = STYLE_RED
+                    except Exception: pass
 
-                # VALORACIÓ DESTACADA (VAL >= 15 -> Vermell, VAL < 0 -> Blau)
-                if "VAL" in df.columns:
+                # Pèrdues (en blau perquè és negatiu)
+                per_col_name = "PER/P" if "PER/P" in df.columns else "PER"
+                if per_col_name in df.columns:
                     try:
-                        v = float(row["VAL"])
-                        if v >= 15:
-                            css_df.loc[i, "VAL"] = STYLE_RED
-                        elif v < 0:
-                            css_df.loc[i, "VAL"] = STYLE_BLUE
-                    except Exception:
-                        pass
+                        if float(row[per_col_name]) >= per_limit: css_df.loc[i, per_col_name] = STYLE_BLUE
+                    except Exception: pass
 
-                if "VPP" in df.columns:
+                # VALORACIÓ
+                target_val_col = "VAL/P" if "VAL/P" in df.columns else ("VPP" if "VPP" in df.columns else "VAL")
+                if target_val_col in df.columns:
                     try:
-                        v = float(row["VPP"])
-                        if v >= 15.0:
-                            css_df.loc[i, "VPP"] = STYLE_RED
-                        elif v <= 0:
-                            css_df.loc[i, "VPP"] = STYLE_BLUE
-                    except Exception:
-                        pass
+                        v = float(row[target_val_col])
+                        val_limit = (14.0 * pj_val) if (is_totals_view and target_val_col == "VAL") else 14.0
+                        if v >= val_limit: css_df.loc[i, target_val_col] = STYLE_RED
+                        elif v < 0: css_df.loc[i, target_val_col] = STYLE_BLUE
+                    except Exception: pass
 
-            # 2. 4 Factors Individuals
+            # -------------------------------------------------------------
+            # 2. 4 FACTORS INDIVIDUALS
+            # -------------------------------------------------------------
             elif mode == "4Factors":
                 if "USG%" in df.columns:
                     try:
-                        if float(row["USG%"]) >= 28.0:
-                            css_df.loc[i, "USG%"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["USG%"]) >= 28.0: css_df.loc[i, "USG%"] = STYLE_RED
+                    except Exception: pass
                 if "1. eFG% (Tir)" in df.columns:
                     try:
                         v = float(row["1. eFG% (Tir)"])
-                        if v >= 60.0:
-                            css_df.loc[i, "1. eFG% (Tir)"] = STYLE_RED
-                        elif v <= 35.0 and v > 0:
-                            css_df.loc[i, "1. eFG% (Tir)"] = STYLE_BLUE
-                    except Exception:
-                        pass
+                        if v >= 60.0: css_df.loc[i, "1. eFG% (Tir)"] = STYLE_RED
+                        elif v <= 35.0 and v > 0: css_df.loc[i, "1. eFG% (Tir)"] = STYLE_BLUE
+                    except Exception: pass
                 if "2. TOV% (Pèrdues)" in df.columns:
                     try:
                         v = float(row["2. TOV% (Pèrdues)"])
-                        if v <= 8.0 and v >= 0:
-                            css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_RED
-                        elif v >= 25.0:
-                            css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_BLUE
-                    except Exception:
-                        pass
+                        if v <= 8.0 and v >= 0: css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_RED
+                        elif v >= 25.0: css_df.loc[i, "2. TOV% (Pèrdues)"] = STYLE_BLUE
+                    except Exception: pass
                 if "3. OREB% (Rebot)" in df.columns:
                     try:
-                        if float(row["3. OREB% (Rebot)"]) >= 12.0:
-                            css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["3. OREB% (Rebot)"]) >= 12.0: css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
+                    except Exception: pass
                 if "4. FT Rate (TL)" in df.columns:
                     try:
-                        if float(row["4. FT Rate (TL)"]) >= 0.25:
-                            css_df.loc[i, "4. FT Rate (TL)"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["4. FT Rate (TL)"]) >= 0.25: css_df.loc[i, "4. FT Rate (TL)"] = STYLE_RED
+                    except Exception: pass
 
-            # 3. Zones de tir
+            # -------------------------------------------------------------
+            # 3. ZONES DE TIR
+            # -------------------------------------------------------------
             elif mode == "Zones":
-                for col in [
-                    "Aro (Rim)",
-                    "Pintura (Paint)",
-                    "Mitja Distància (MR)",
-                ]:
+                min_att_z = 0.6 if is_per_game else (3.0 if is_totals_view else 2.0)
+
+                for col in ["Aro (Rim)", "Pintura (Paint)", "Mitja Distància (MR)"]:
                     if col in df.columns:
                         m, a = parse_fraction(row[col])
-                        if a >= 2:
-                            pct = (m / a) * 100
-                            if pct >= 70:
-                                css_df.loc[i, col] = STYLE_RED
-                            elif pct == 0:
-                                css_df.loc[i, col] = STYLE_BLUE
+                        if a >= min_att_z:
+                            pct = (m / a) * 100.0
+                            if pct >= 65.0: css_df.loc[i, col] = STYLE_RED
+                            elif pct <= 25.0: css_df.loc[i, col] = STYLE_BLUE
 
                 for col in ["Triple Cantonada (C3)", "Triple Frontal (ATB3)"]:
                     if col in df.columns:
                         m, a = parse_fraction(row[col])
-                        if a >= 2:
-                            pct = (m / a) * 100
-                            if pct >= 50:
-                                css_df.loc[i, col] = STYLE_RED
-                            elif pct <= 15:
-                                css_df.loc[i, col] = STYLE_BLUE
+                        if a >= min_att_z:
+                            pct = (m / a) * 100.0
+                            if pct >= 45.0: css_df.loc[i, col] = STYLE_RED
+                            elif pct <= 20.0: css_df.loc[i, col] = STYLE_BLUE
 
-            # 4. Accions Defensives
+            # -------------------------------------------------------------
+            # 4. ACCIONS DEFENSIVES
+            # -------------------------------------------------------------
             elif mode == "Defensa":
+                defl_limit = (2.5 * pj_val) if is_totals_view else 2.0
+                rec_limit = (1.5 * pj_val) if is_totals_view else 1.5
+                tap_limit = (1.0 * pj_val) if is_totals_view else 1.0
+
                 if "Defleccions" in df.columns:
                     try:
-                        if float(row["Defleccions"]) >= 3:
-                            css_df.loc[i, "Defleccions"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["Defleccions"]) >= defl_limit: css_df.loc[i, "Defleccions"] = STYLE_RED
+                    except Exception: pass
                 if "Robatoris (REC)" in df.columns:
                     try:
-                        if float(row["Robatoris (REC)"]) >= 2:
-                            css_df.loc[i, "Robatoris (REC)"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["Robatoris (REC)"]) >= rec_limit: css_df.loc[i, "Robatoris (REC)"] = STYLE_RED
+                    except Exception: pass
                 if "Taps Totals (TAP)" in df.columns:
                     try:
-                        if float(row["Taps Totals (TAP)"]) >= 2:
-                            css_df.loc[i, "Taps Totals (TAP)"] = STYLE_RED
-                    except Exception:
-                        pass
-                if "Impacte Defensiu (Total)" in df.columns:
-                    try:
-                        if float(row["Impacte Defensiu (Total)"]) >= 5:
-                            css_df.loc[i, "Impacte Defensiu (Total)"] = (
-                                STYLE_RED
-                            )
-                    except Exception:
-                        pass
+                        if float(row["Taps Totals (TAP)"]) >= tap_limit: css_df.loc[i, "Taps Totals (TAP)"] = STYLE_RED
+                    except Exception: pass
 
-            # 5. Impacte i Context
-            elif (
-                "context" in str(mode).lower() or "impacte" in str(mode).lower()
-            ):
-                if "Transició" in df.columns:
-                    m, a = parse_fraction(row["Transició"])
-                    if m >= 2:
-                        css_df.loc[i, "Transició"] = STYLE_RED
-                    elif a >= 2 and m == 0:
-                        css_df.loc[i, "Transició"] = STYLE_BLUE
+            # -------------------------------------------------------------
+            # 5. IMPACTE I CONTEXT
+            # -------------------------------------------------------------
+            elif "context" in str(mode).lower() or "impacte" in str(mode).lower():
+                per_limit_ctx = (2.5 * pj_val) if is_totals_view else 2.5
+                lto_limit_ctx = (1.2 * pj_val) if is_totals_view else 1.2
 
-                if "2a Oportunitat" in df.columns:
-                    m, a = parse_fraction(row["2a Oportunitat"])
-                    if m >= 2:
-                        css_df.loc[i, "2a Oportunitat"] = STYLE_RED
-                    elif a >= 2 and m == 0:
-                        css_df.loc[i, "2a Oportunitat"] = STYLE_BLUE
-
-                for per_col in ["PER Totals", "Pèrdues"]:
+                for per_col in ["PER Totals", "Pèrdues", "PER/P"]:
                     if per_col in df.columns:
                         try:
-                            if float(row[per_col]) >= 3:
-                                css_df.loc[i, per_col] = STYLE_BLUE
-                        except Exception:
-                            pass
+                            if float(row[per_col]) >= per_limit_ctx: css_df.loc[i, per_col] = STYLE_BLUE
+                        except Exception: pass
 
-                if "Vives (LTO)" in df.columns:
-                    try:
-                        if float(row["Vives (LTO)"]) >= 2:
-                            css_df.loc[i, "Vives (LTO)"] = STYLE_BLUE
-                    except Exception:
-                        pass
+                for lto_col in ["Vives (LTO)", "LTO/P"]:
+                    if lto_col in df.columns:
+                        try:
+                            if float(row[lto_col]) >= lto_limit_ctx: css_df.loc[i, lto_col] = STYLE_BLUE
+                        except Exception: pass
 
-                if "Faltes Com." in df.columns:
-                    try:
-                        if float(row["Faltes Com."]) >= 4:
-                            css_df.loc[i, "Faltes Com."] = STYLE_BLUE
-                    except Exception:
-                        pass
-
-                if "Faltes Reb." in df.columns:
-                    try:
-                        if float(row["Faltes Reb."]) >= 4:
-                            css_df.loc[i, "Faltes Reb."] = STYLE_RED
-                    except Exception:
-                        pass
-
-            # 6. Assistències
+            # -------------------------------------------------------------
+            # 6. XARXA D'ASSISTÈNCIES
+            # -------------------------------------------------------------
             elif "assist" in str(mode).lower():
+                # En temporada exigim un volum realment alt; en partit individual, els 4/8 clàssics
+                pts_gen_limit = 35.0 if is_totals_view else 8.0
+                ast_net_limit = 15.0 if is_totals_view else 4.0
+
                 for pts_col in ["PTS Generats", "Punts Generats"]:
                     if pts_col in df.columns:
                         try:
-                            if float(row[pts_col]) >= 8:
-                                css_df.loc[i, pts_col] = STYLE_RED
-                        except Exception:
-                            pass
+                            if float(row[pts_col]) >= pts_gen_limit: css_df.loc[i, pts_col] = STYLE_RED
+                        except Exception: pass
+
                 if "AST" in df.columns:
                     try:
-                        if float(row["AST"]) >= 4:
-                            css_df.loc[i, "AST"] = STYLE_RED
-                    except Exception:
-                        pass
+                        if float(row["AST"]) >= ast_net_limit: css_df.loc[i, "AST"] = STYLE_RED
+                    except Exception: pass
 
         return css_df
 
     styler = df_disp.style.apply(apply_row_styles, axis=None)
 
-    # Formatar numèricament amb % i decimals preservant l'ordenació
     fmt_dict = {}
     for col in df_disp.columns:
-        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats"]:
-            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
-                fmt_dict[col] = "{:.0f}%"
-        elif (
-            "%" in col
-            or "eFG" in col
-            or "TOV" in col
-            or "OREB" in col
-            or "USG" in col
-        ):
+        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats", "% 2a Op."]:
             if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.1f}%"
-        elif "FT Rate" in col or "REB/Min" in col or "Reb/P" in col or "PPP" in col or "VPP" in col:
-            fmt_dict[col] = "{:.2f}"  
-        elif col in ["Plays", "PPP", "VPP"]:
-            if df_disp[col].dtype in [float, np.float64]:
-                fmt_dict[col] = "{:.1f}"
+        elif "%" in col or "eFG" in col or "TOV" in col or "OREB" in col or "USG" in col:
+            if df_disp[col].dtype in [float, np.float64, int, np.int64]:
+                fmt_dict[col] = "{:.1f}%"
+        elif "FT Rate" in col or "REB/Min" in col:
+            fmt_dict[col] = "{:.2f}"
         elif col in ["PPP", "VPP", "VAL/P", "Reb/P", "MIN/P", "PTS/P"]:
             if df_disp[col].dtype in [float, np.float64]:
                 fmt_dict[col] = "{:.1f}"
         elif is_per_game and df_disp[col].dtype in [float, np.float64]:
             fmt_dict[col] = "{:.1f}"
-                
 
     if fmt_dict:
         styler = styler.format(fmt_dict, na_rep="-")
@@ -3148,7 +3086,7 @@ else:
                             "T3_Generats": "T3 Assistits",
                         }
                     )
-                    render_boxscore(df_c_disp_s, "Assistències")
+                    render_boxscore(df_c_disp_s, "Assistències", is_totals_view=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
 
@@ -3164,7 +3102,7 @@ else:
                             "T3": "T3 Assistits",
                         }
                     )
-                    render_boxscore(df_r_disp_s, "Assistències")
+                    rrender_boxscore(df_r_disp_s, "Assistències", is_totals_view=True)
                 else:
                     st.info(
                         "No hi ha assistències registrades en els partits"
