@@ -749,7 +749,7 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
     # FORMAT DECIMAL NET: Impedeix que surtin valors com '35.500000'
     fmt_dict = {}
     for col in df_disp.columns:
-        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats", "% 2a Op."]:
+        if col in ["%T2", "%T3", "%TL", "% Taps Recuperats", "% 2a Op.", "OREB%", "RO%"]:
             if df_disp[col].dtype in [float, np.float64, int, np.int64]:
                 fmt_dict[col] = "{:.1f}%"
         elif "%" in col or "eFG" in col or "TOV" in col or "OREB" in col or "USG" in col:
@@ -2073,11 +2073,12 @@ if view_mode == "Partit Individual":
                 df_reb["REB_D"] = reb_d
                 df_reb["REB_T"] = reb_t
 
-                # 2. Càlcul OREB% (Fórmula Dean Oliver / Imatge) i REB/Min
-                p_mp = g_box["MIN"].apply(parse_min_to_float)
-                t_mp = float(p_mp.sum())
-                t_or = float(reb_o.sum())
+                # Obtenim l'OREB% oficial de 4 Factors per al partit individual
+                df_4f_ref_single = get_individual_four_factors(box_df, lineups_df, pbp_df, selected_game_id)
+                oreb_map_single = dict(zip(df_4f_ref_single["#"].astype(str), df_4f_ref_single["3. OREB% (Rebot)"]))
+                df_reb["OREB%"] = pd.to_numeric(df_reb["#"].astype(str).map(oreb_map_single), errors="coerce").fillna(0.0).round(1)
 
+                df_reb["REB/Min"] = np.round(np.where(p_mp > 0, reb_t / p_mp, 0.0), 2)
                 # Rebots defensius del rival extrets de lineups
                 g_line = lineups_df[lineups_df["game_id"] == str(selected_game_id)]
                 opp_dr = float(pd.to_numeric(g_line["DREB_Agn"], errors="coerce").fillna(0).sum()) if not g_line.empty else (t_or * 1.5)
@@ -3236,13 +3237,12 @@ else:
                     df_reb_s["REB_T"] = reb_t_s.astype(int)
                     df_reb_s["Reb/P"] = (reb_t_s / pj).fillna(0.0).round(1)
 
-                p_mp_s = p_agg["MIN_TOT"].values
-                t_mp_s = float(comp_box["_min_num"].sum())
-                t_or_s = float(comp_box["Off Reb"].sum())
-                opp_dr_s = float(pd.to_numeric(comp_lineups.get("DREB_Agn", 0), errors="coerce").fillna(0).sum()) if not comp_lineups.empty else (t_or_s * 1.5)
+                # Obtenim l'OREB% oficial directament de 4 Factors per garantir coherència total (9.2%)
+                df_4f_ref = get_individual_four_factors(comp_box_filtered, comp_lineups, comp_pbp, game_id=None)
+                oreb_map = dict(zip(df_4f_ref["#"].astype(str), df_4f_ref["3. OREB% (Rebot)"]))
+                df_reb_s["OREB%"] = pd.to_numeric(df_reb_s["#"].astype(str).map(oreb_map), errors="coerce").fillna(0.0).round(1)
 
-                orb_denom_s = p_mp_s * (t_or_s + opp_dr_s)
-                df_reb_s["OREB%"] = np.where((p_mp_s > 0) & (orb_denom_s > 0), 100.0 * (reb_o_s * (t_mp_s / 5.0)) / orb_denom_s, 0.0)
+                p_mp_s = p_agg["MIN_TOT"].values
                 df_reb_s["REB/Min"] = np.round(np.where(p_mp_s > 0, reb_t_s / p_mp_s, 0.0), 2)
 
                 ch2_m_s = pd.to_numeric(p_agg.get("Ch2M", 0), errors="coerce").fillna(0)
