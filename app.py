@@ -2065,7 +2065,7 @@ if view_mode == "Partit Individual":
                 df_reb["#"] = g_box["Player"]
                 df_reb["Jugador"] = g_box["Name"]
 
-                # 1. Dades base de rebots
+                # 1. Rebots bàsics
                 reb_o = pd.to_numeric(g_box["Off Reb"], errors="coerce").fillna(0).astype(int)
                 reb_d = pd.to_numeric(g_box["Def Reb"], errors="coerce").fillna(0).astype(int)
                 reb_t = reb_o + reb_d
@@ -2073,25 +2073,18 @@ if view_mode == "Partit Individual":
                 df_reb["REB_D"] = reb_d
                 df_reb["REB_T"] = reb_t
 
-                # Obtenim l'OREB% oficial de 4 Factors per al partit individual
+                # 2. Minuts per calcular REB/Min (la variable que faltava)
+                p_mp = g_box["MIN"].apply(parse_min_to_float)
+
+                # 3. OREB% oficial de 4 Factors
                 df_4f_ref_single = get_individual_four_factors(box_df, lineups_df, pbp_df, selected_game_id)
                 oreb_map_single = dict(zip(df_4f_ref_single["#"].astype(str), df_4f_ref_single["3. OREB% (Rebot)"]))
                 df_reb["OREB%"] = pd.to_numeric(df_reb["#"].astype(str).map(oreb_map_single), errors="coerce").fillna(0.0).round(1)
 
-                df_reb["REB/Min"] = np.round(np.where(p_mp > 0, reb_t / p_mp, 0.0), 2)
-                # Rebots defensius del rival extrets de lineups
-                g_line = lineups_df[lineups_df["game_id"] == str(selected_game_id)]
-                opp_dr = float(pd.to_numeric(g_line["DREB_Agn"], errors="coerce").fillna(0).sum()) if not g_line.empty else (t_or * 1.5)
-
-                orb_denom = p_mp * (t_or + opp_dr)
-                df_reb["OREB%"] = np.where(
-                    (p_mp > 0) & (orb_denom > 0),
-                    100.0 * (reb_o * (t_mp / 5.0)) / orb_denom,
-                    0.0
-                )
+                # 4. Càlcul de REB/Min
                 df_reb["REB/Min"] = np.round(np.where(p_mp > 0, reb_t / p_mp, 0.0), 2)
 
-                # 3. Segona Oportunitat
+                # 5. Segona Oportunitat
                 ch2_m = pd.to_numeric(g_box.get("2ndCh(M)", 0), errors="coerce").fillna(0).astype(int)
                 ch2_miss = pd.to_numeric(g_box.get("2ndCh(Miss)", 0), errors="coerce").fillna(0).astype(int)
                 ch2_tot = ch2_m + ch2_miss
@@ -2101,9 +2094,8 @@ if view_mode == "Partit Individual":
                 df_reb["Fallades 2a Op."] = ch2_miss
                 df_reb["% 2a Op."] = ((ch2_m / ch2_tot.replace(0, np.nan)) * 100.0).fillna(0.0)
 
-                # Ordenem per rebots totals
                 df_sorted = df_reb.sort_values(by=["REB_T", "REB_O"], ascending=False).reset_index(drop=True)
-                render_boxscore(df_sorted, "Rebot")
+                render_boxscore(df_sorted, "Rebot", is_per_game=False, is_totals_view=False)
         else:
             st.info("No hi ha dades de Boxscore disponibles.")
 
