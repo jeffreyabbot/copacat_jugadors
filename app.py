@@ -93,9 +93,10 @@ st.markdown(
             justify-content: space-between;
         }
         div[data-testid="stMetricValue"] {
-            font-size: 1.85rem;
+            font-size: 1.45rem !important;
             font-weight: 700;
             color: #212529;
+            white-space: nowrap !important;
         }
         div[data-testid="stMetricLabel"] {
             font-size: 0.95rem;
@@ -777,7 +778,7 @@ def clean_txt(t):
     ).lower().strip()
 
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
-    """Renderitza el panell d'On/Off basat exclusivament en possessions reals."""
+    """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
         st.info("No hi ha dades de quintets disponibles per aquesta selecció.")
         return
@@ -814,23 +815,24 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     
     p_label, p_num, p_name = selected_p_tuple
 
-    # 2. Filtrar quintets ON i OFF (Dades 100% de Lineups)
+    # 2. CÀLCUL DELS 3 ESTATS: ON, OFF I GLOBAL EQUIP
     is_on_mask = l_df.apply(lambda r: is_player_in_lineup(r, p_num, p_name), axis=1)
     df_on = l_df[is_on_mask].copy()
     df_off = l_df[~is_on_mask].copy()
 
-    st_on = aggregate_lineup_data(df_on)
-    st_off = aggregate_lineup_data(df_off)
+    st_tot = aggregate_lineup_data(l_df)      # 👈 Global de tot l'equip
+    st_on = aggregate_lineup_data(df_on)       # 👈 Amb el jugador
+    st_off = aggregate_lineup_data(df_off)     # 👈 Sense el jugador
 
-    # 3. Càlcul de possessions i mètriques netes
+    # Possessions
     poss_on = st_on.get("poss", 0)
     poss_off = st_off.get("poss", 0)
     disp_on_poss = int(round(poss_on))
     disp_off_poss = int(round(poss_off))
     tot_poss = disp_on_poss + disp_off_poss
-
     pct_poss = (poss_on / tot_poss * 100.0) if tot_poss > 0 else 0.0
 
+    # Mètriques ON vs OFF
     net_on = st_on.get("net_rtg", 0)
     net_off = st_off.get("net_rtg", 0)
     oer_on = st_on.get("oer", 0)
@@ -840,12 +842,33 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     pm_on = st_on.get("plus_minus", 0)
     pm_off = st_off.get("plus_minus", 0)
 
-    # 4. TARGETES KPI (5 columnes completes: Volum, Net, OER, DER, +/-)
+    # Mètriques GLOBALS EQUIP
+    net_tot = st_tot.get("net_rtg", 0)
+    oer_tot = st_tot.get("oer", 0)
+    der_tot = st_tot.get("der", 0)
+    pm_tot = st_tot.get("plus_minus", 0)
+
+    # 3. BANDA DE REFERÈNCIA GLOBAL DE L'EQUIP
+    st.markdown(
+        f"""
+        <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-left: 5px solid #d00000; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
+            <span style="font-weight: 700; color: #212529;">🏁 Mitjana Global de l'Equip:</span>
+            <span>⚡ Net Rating: <b style="color: {'#d00000' if net_tot >= 0 else '#0077b6'};">{net_tot:+.1f}</b></span>
+            <span>🎯 Atac (OER): <b>{oer_tot:.1f}</b> pts/100</span>
+            <span>🛡️ Defensa (DER): <b>{der_tot:.1f}</b> pts/100</span>
+            <span>⚖️ Marcador +/-: <b style="color: {'#d00000' if pm_tot >= 0 else '#0077b6'};">{int(pm_tot):+d} pts</b></span>
+            <span>🏀 Possessions Totals: <b>{tot_poss}</b></span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    # 4. TARGETES KPI DEL JUGADOR
     k1, k2, k3, k4, k5 = st.columns(5)
     
     k1.metric(
         "🏀 Possessions Jugades",
-        f"{disp_on_poss} ON · {disp_off_poss} OFF",
+        f"{disp_on_poss} ON / {disp_off_poss} OFF",
         delta=f"Temps joc: {pct_poss:.0f}% del total",
         delta_color="off",
     )
@@ -863,7 +886,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
         "🛡️ Eficiència Defensa (DER)",
         f"{der_on:.1f} pts",
         delta=f"{der_off - der_on:+.1f} pts/100 vs off",
-        delta_color="inverse",  # En defensa, encaixar menys punts és positiu
+        delta_color="inverse",
     )
     k5.metric(
         "⚖️ Marcador +/- Real",
@@ -873,35 +896,36 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
 
     st.markdown("---")
 
-    # 5. Taules d'Atac i Defensa (100% immunes a errors de minuts)
+    # 5. TAULES COMPARATIVES AMB LA COLUMNA "GLOBAL EQUIP"
     st.subheader(f"📊 Impacte On vs Off de {p_label}")
     col_offense, col_defense = st.columns(2)
 
     with col_offense:
         st.markdown("#### 🔴 Atac d'Argentona")
         df_offense = pd.DataFrame([
-            {"Mètrica": "1. Tir Efectiu (eFG%)", "Amb Jugador (ON)": f"{st_on.get('efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('efg', 0):.1f}%", "Diferencial": f"{st_on.get('efg',0)-st_off.get('efg',0):+.1f}%"},
-            {"Mètrica": "2. % Tir de 2 (2P%)", "Amb Jugador (ON)": f"{st_on.get('pct_2p', 0):.1f}% ({int(st_on.get('2pm',0))}/{int(st_on.get('2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_2p', 0):.1f}% ({int(st_off.get('2pm',0))}/{int(st_off.get('2pa',0))})", "Diferencial": f"{st_on.get('pct_2p',0)-st_off.get('pct_2p',0):+.1f}%"},
-            {"Mètrica": "3. % Triples (3P%)", "Amb Jugador (ON)": f"{st_on.get('pct_3p', 0):.1f}% ({int(st_on.get('3pm',0))}/{int(st_on.get('3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_3p', 0):.1f}% ({int(st_off.get('3pm',0))}/{int(st_off.get('3pa',0))})", "Diferencial": f"{st_on.get('pct_3p',0)-st_off.get('pct_3p',0):+.1f}%"},
-            {"Mètrica": "4. Ràtio de Triples (3PAr)", "Amb Jugador (ON)": f"{st_on.get('3par', 0):.1f}% dels tirs", "Sense Jugador (OFF)": f"{st_off.get('3par', 0):.1f}% dels tirs", "Diferencial": f"{st_on.get('3par',0)-st_off.get('3par',0):+.1f}%"},
-            {"Mètrica": "5. Eficiència Ofensiva (OER)", "Amb Jugador (ON)": f"{st_on.get('oer', 0):.1f} pts/100", "Sense Jugador (OFF)": f"{st_off.get('oer', 0):.1f} pts/100", "Diferencial": f"{st_on.get('oer',0)-st_off.get('oer',0):+.1f}"},
-            {"Mètrica": "% Rebot Ofensiu (OREB%)", "Amb Jugador (ON)": f"{st_on.get('oreb_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('oreb_pct', 0):.1f}%", "Diferencial": f"{st_on.get('oreb_pct',0)-st_off.get('oreb_pct',0):+.1f}%"},
-            {"Mètrica": "Ràtio de Pèrdues (TOV%)", "Amb Jugador (ON)": f"{st_on.get('tov_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('tov_pct', 0):.1f}%", "Diferencial": f"{st_on.get('tov_pct',0)-st_off.get('tov_pct',0):+.1f}%"},
-            {"Mètrica": "Freqüència TL (FT Rate)", "Amb Jugador (ON)": f"{st_on.get('ft_rate', 0):.2f}", "Sense Jugador (OFF)": f"{st_off.get('ft_rate', 0):.2f}", "Diferencial": f"{st_on.get('ft_rate',0)-st_off.get('ft_rate',0):+.2f}"},
+            {"Mètrica": "⚡ Net Rating", "Amb Jugador (ON)": f"{st_on.get('net_rtg', 0):+.1f}", "Global Equip": f"{st_tot.get('net_rtg', 0):+.1f}", "Sense Jugador (OFF)": f"{st_off.get('net_rtg', 0):+.1f}", "Diferencial": f"{st_on.get('net_rtg', 0) - st_off.get('net_rtg', 0):+.1f}"},
+            {"Mètrica": "🎯 Eficiència Atac (OER)", "Amb Jugador (ON)": f"{st_on.get('oer', 0):.1f} pts", "Global Equip": f"{st_tot.get('oer', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('oer', 0):.1f} pts", "Diferencial": f"{st_on.get('oer', 0) - st_off.get('oer', 0):+.1f}"},
+            {"Mètrica": "1. Tir Efectiu (eFG%)", "Amb Jugador (ON)": f"{st_on.get('efg', 0):.1f}%", "Global Equip": f"{st_tot.get('efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('efg', 0):.1f}%", "Diferencial": f"{st_on.get('efg', 0) - st_off.get('efg', 0):+.1f}%"},
+            {"Mètrica": "2. % Tir de 2 (2P%)", "Amb Jugador (ON)": f"{st_on.get('pct_2p', 0):.1f}% ({int(st_on.get('2pm',0))}/{int(st_on.get('2pa',0))})", "Global Equip": f"{st_tot.get('pct_2p', 0):.1f}% ({int(st_tot.get('2pm',0))}/{int(st_tot.get('2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_2p', 0):.1f}% ({int(st_off.get('2pm',0))}/{int(st_off.get('2pa',0))})", "Diferencial": f"{st_on.get('pct_2p', 0) - st_off.get('pct_2p', 0):+.1f}%"},
+            {"Mètrica": "3. % Triples (3P%)", "Amb Jugador (ON)": f"{st_on.get('pct_3p', 0):.1f}% ({int(st_on.get('3pm',0))}/{int(st_on.get('3pa',0))})", "Global Equip": f"{st_tot.get('pct_3p', 0):.1f}% ({int(st_tot.get('3pm',0))}/{int(st_tot.get('3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_3p', 0):.1f}% ({int(st_off.get('3pm',0))}/{int(st_off.get('3pa',0))})", "Diferencial": f"{st_on.get('pct_3p', 0) - st_off.get('pct_3p', 0):+.1f}%"},
+            {"Mètrica": "4. Ràtio de Triples (3PAr)", "Amb Jugador (ON)": f"{st_on.get('3par', 0):.1f}%", "Global Equip": f"{st_tot.get('3par', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('3par', 0):.1f}%", "Diferencial": f"{st_on.get('3par', 0) - st_off.get('3par', 0):+.1f}%"},
+            {"Mètrica": "% Rebot Ofensiu (OREB%)", "Amb Jugador (ON)": f"{st_on.get('oreb_pct', 0):.1f}%", "Global Equip": f"{st_tot.get('oreb_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('oreb_pct', 0):.1f}%", "Diferencial": f"{st_on.get('oreb_pct', 0) - st_off.get('oreb_pct', 0):+.1f}%"},
+            {"Mètrica": "Ràtio de Pèrdues (TOV%)", "Amb Jugador (ON)": f"{st_on.get('tov_pct', 0):.1f}%", "Global Equip": f"{st_tot.get('tov_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('tov_pct', 0):.1f}%", "Diferencial": f"{st_on.get('tov_pct', 0) - st_off.get('tov_pct', 0):+.1f}%"},
+            {"Mètrica": "Freqüència TL (FT Rate)", "Amb Jugador (ON)": f"{st_on.get('ft_rate', 0):.2f}", "Global Equip": f"{st_tot.get('ft_rate', 0):.2f}", "Sense Jugador (OFF)": f"{st_off.get('ft_rate', 0):.2f}", "Diferencial": f"{st_on.get('ft_rate', 0) - st_off.get('ft_rate', 0):+.2f}"},
         ])
         st.dataframe(df_offense, use_container_width=True, hide_index=True)
 
     with col_defense:
         st.markdown("#### 🛡️ Defensa (Rivals)")
         df_defense = pd.DataFrame([
-            {"Mètrica": "1. Tir Efectiu Rival (eFG%)", "Amb Jugador (ON)": f"{st_on.get('opp_efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_efg', 0):.1f}%", "Diferencial": f"{st_on.get('opp_efg',0)-st_off.get('opp_efg',0):+.1f}%"},
-            {"Mètrica": "2. % Tir de 2 Rival (2P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_2p', 0):.1f}% ({int(st_on.get('opp_2pm',0))}/{int(st_on.get('opp_2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_2p', 0):.1f}% ({int(st_off.get('opp_2pm',0))}/{int(st_off.get('opp_2pa',0))})", "Diferencial": f"{st_on.get('opp_pct_2p',0)-st_off.get('opp_pct_2p',0):+.1f}%"},
-            {"Mètrica": "3. % Triples Rival (3P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_3p', 0):.1f}% ({int(st_on.get('opp_3pm',0))}/{int(st_on.get('opp_3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_3p', 0):.1f}% ({int(st_off.get('opp_3pm',0))}/{int(st_off.get('opp_3pa',0))})", "Diferencial": f"{st_on.get('opp_pct_3p',0)-st_off.get('opp_pct_3p',0):+.1f}%"},
-            {"Mètrica": "4. Ràtio Triples Rival (3PAr)", "Amb Jugador (ON)": f"{st_on.get('opp_3par', 0):.1f}% dels tirs", "Sense Jugador (OFF)": f"{st_off.get('opp_3par', 0):.1f}% dels tirs", "Diferencial": f"{st_on.get('opp_3par',0)-st_off.get('opp_3par',0):+.1f}%"},
-            {"Mètrica": "5. Eficiència Defensiva (DER)", "Amb Jugador (ON)": f"{st_on.get('der', 0):.1f} pts/100", "Sense Jugador (OFF)": f"{st_off.get('der', 0):.1f} pts/100", "Diferencial": f"{st_on.get('der',0)-st_off.get('der',0):+.1f}"},
-            {"Mètrica": "% Rebot Ofensiu Rival (OREB%)", "Amb Jugador (ON)": f"{st_on.get('opp_oreb_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_oreb_pct', 0):.1f}%", "Diferencial": f"{st_on.get('opp_oreb_pct',0)-st_off.get('opp_oreb_pct',0):+.1f}%"},
-            {"Mètrica": "Pèrdues Forçades Rival (TOV%)", "Amb Jugador (ON)": f"{st_on.get('opp_tov_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_tov_pct', 0):.1f}%", "Diferencial": f"{st_on.get('opp_tov_pct',0)-st_off.get('opp_tov_pct',0):+.1f}%"},
-            {"Mètrica": "Freqüència TL Rival (FT Rate)", "Amb Jugador (ON)": f"{st_on.get('opp_ft_rate', 0):.2f}", "Sense Jugador (OFF)": f"{st_off.get('opp_ft_rate', 0):.2f}", "Diferencial": f"{st_on.get('opp_ft_rate',0)-st_off.get('opp_ft_rate',0):+.2f}"},
+            {"Mètrica": "🛡️ Eficiència Defensa (DER)", "Amb Jugador (ON)": f"{st_on.get('der', 0):.1f} pts", "Global Equip": f"{st_tot.get('der', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('der', 0):.1f} pts", "Diferencial": f"{st_on.get('der', 0) - st_off.get('der', 0):+.1f}"},
+            {"Mètrica": "1. Tir Efectiu Rival (eFG%)", "Amb Jugador (ON)": f"{st_on.get('opp_efg', 0):.1f}%", "Global Equip": f"{st_tot.get('opp_efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_efg', 0):.1f}%", "Diferencial": f"{st_on.get('opp_efg', 0) - st_off.get('opp_efg', 0):+.1f}%"},
+            {"Mètrica": "2. % Tir de 2 Rival (2P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_2p', 0):.1f}% ({int(st_on.get('opp_2pm',0))}/{int(st_on.get('opp_2pa',0))})", "Global Equip": f"{st_tot.get('opp_pct_2p', 0):.1f}% ({int(st_tot.get('opp_2pm',0))}/{int(st_tot.get('opp_2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_2p', 0):.1f}% ({int(st_off.get('opp_2pm',0))}/{int(st_off.get('opp_2pa',0))})", "Diferencial": f"{st_on.get('opp_pct_2p', 0) - st_off.get('opp_pct_2p', 0):+.1f}%"},
+            {"Mètrica": "3. % Triples Rival (3P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_3p', 0):.1f}% ({int(st_on.get('opp_3pm',0))}/{int(st_on.get('opp_3pa',0))})", "Global Equip": f"{st_tot.get('opp_pct_3p', 0):.1f}% ({int(st_tot.get('opp_3pm',0))}/{int(st_tot.get('opp_3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_3p', 0):.1f}% ({int(st_off.get('opp_3pm',0))}/{int(st_off.get('opp_3pa',0))})", "Diferencial": f"{st_on.get('opp_pct_3p', 0) - st_off.get('opp_pct_3p', 0):+.1f}%"},
+            {"Mètrica": "4. Ràtio Triples Rival (3PAr)", "Amb Jugador (ON)": f"{st_on.get('opp_3par', 0):.1f}%", "Global Equip": f"{st_tot.get('opp_3par', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_3par', 0):.1f}%", "Diferencial": f"{st_on.get('opp_3par', 0) - st_off.get('opp_3par', 0):+.1f}%"},
+            {"Mètrica": "% Rebot Ofensiu Rival (OREB%)", "Amb Jugador (ON)": f"{st_on.get('opp_oreb_pct', 0):.1f}%", "Global Equip": f"{st_tot.get('opp_oreb_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_oreb_pct', 0):.1f}%", "Diferencial": f"{st_on.get('opp_oreb_pct', 0) - st_off.get('opp_oreb_pct', 0):+.1f}%"},
+            {"Mètrica": "Pèrdues Forçades Rival (TOV%)", "Amb Jugador (ON)": f"{st_on.get('opp_tov_pct', 0):.1f}%", "Global Equip": f"{st_tot.get('opp_tov_pct', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_tov_pct', 0):.1f}%", "Diferencial": f"{st_on.get('opp_tov_pct', 0) - st_off.get('opp_tov_pct', 0):+.1f}%"},
+            {"Mètrica": "Freqüència TL Rival (FT Rate)", "Amb Jugador (ON)": f"{st_on.get('opp_ft_rate', 0):.2f}", "Global Equip": f"{st_tot.get('opp_ft_rate', 0):.2f}", "Sense Jugador (OFF)": f"{st_off.get('opp_ft_rate', 0):.2f}", "Diferencial": f"{st_on.get('opp_ft_rate', 0) - st_off.get('opp_ft_rate', 0):+.2f}"},
         ])
         st.dataframe(df_defense, use_container_width=True, hide_index=True)
 
@@ -928,10 +952,8 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     target_lineups = df_on if filter_player_lineups else l_df
     df_5man = get_5man_lineup_summary(target_lineups, b_df, min_minutes=0.0)
 
-    # Filtrem la taula directament per possessions reals
     if not df_5man.empty and "POSS" in df_5man.columns:
         df_5man = df_5man[df_5man["POSS"] >= min_poss_val].reset_index(drop=True)
-        # Eliminem la columna MIN de la taula si no és fiable
         if "MIN" in df_5man.columns:
             df_5man = df_5man.drop(columns=["MIN"])
 
@@ -945,6 +967,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
         )
     else:
         st.info("No hi ha quintets que compleixin els filtres de possessions seleccionats.")
+
 # =============================================================
 # MODO 1: PARTIT INDIVIDUAL
 # =============================================================
