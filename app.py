@@ -1362,42 +1362,23 @@ if view_mode == "Partit Individual":
 
             st.markdown("---")
 
-            # 6. NOVES TARGETES: RITME, OER I DER
-            # Possessions reals de partit amb protecció si falta el rival
-            raw_t_poss = float(
-                s_team_fga + 0.44 * s_team_fta - s_team_oreb + s_team_tov
-            )
-            raw_o_poss = float(
-                s_opp_fga + 0.44 * s_opp_fta - s_opp_oreb + s_opp_tov
-            )
-
-            # Si tenim dades dels dos equips fem la mitjana; si el rival no té dades, usem les nostres
-            if raw_t_poss >= 15.0 and raw_o_poss >= 15.0:
-                match_poss = 0.5 * (raw_t_poss + raw_o_poss)
-            elif raw_t_poss >= 15.0:
-                match_poss = raw_t_poss
-            elif raw_o_poss >= 15.0:
-                match_poss = raw_o_poss
-            else:
-                match_poss = 80.0
-
-            # Minuts reals de l'equip al partit
-            match_team_min = g_box_m["MIN"].apply(parse_min_to_float).sum()
-
-            # Si el partit és de 40 minuts regulars (sense pròrroga), el Ritme és exactament igual a les possessions
-            if 190.0 <= match_team_min <= 210.0:
+            # 6. TARGETES: RITME, OER I DER (Dades reals de quintets del partit)
+            if not g_line_m.empty:
+                st_game_real = aggregate_lineup_data(g_line_m)
+                match_poss = st_game_real.get("poss", 0)
                 match_pace = match_poss
-            elif match_team_min > 210.0:
-                match_pace = (match_poss / match_team_min) * 200.0
+                match_oer = st_game_real.get("oer", 0)
+                match_der = st_game_real.get("der", 0)
+                match_net = st_game_real.get("net_rtg", match_oer - match_der)
             else:
+                # Estimació de seguretat només si no hi ha dades de quintets
+                raw_t_poss = float(s_team_fga + 0.44 * s_team_fta - s_team_oreb + s_team_tov)
+                raw_o_poss = float(s_opp_fga + 0.44 * s_opp_fta - s_opp_oreb + s_opp_tov)
+                match_poss = 0.5 * (raw_t_poss + raw_o_poss) if (raw_t_poss >= 15 and raw_o_poss >= 15) else 80.0
                 match_pace = match_poss
-            match_oer = (
-                (s_team_pts / match_poss) * 100.0 if match_poss > 0 else 0.0
-            )
-            match_der = (
-                (s_opp_pts / match_poss) * 100.0 if match_poss > 0 else 0.0
-            )
-            match_net = match_oer - match_der
+                match_oer = ((s_team_pts / match_poss) * 100.0) if match_poss > 0 else 0.0
+                match_der = ((s_opp_pts / match_poss) * 100.0) if match_poss > 0 else 0.0
+                match_net = match_oer - match_der
 
             st.subheader("⚡ Eficiència Global de Possessió")
             c_pace, c_oer, c_der = st.columns(3)
@@ -2483,120 +2464,23 @@ else:
 
             st.markdown("---")
 
-            # 7. TARGETES D'EFICIÈNCIA GLOBAL (CÀLCUL PARTIT A PARTIT GARANTIT)
-            game_possessions_list = []
-            team_pts_list = []
-            opp_pts_list = []
+            # 7. TARGETES D'EFICIÈNCIA GLOBAL (Dades reals de quintets unificades)
+            if not comp_lineups.empty:
+                st_season_real = aggregate_lineup_data(comp_lineups)
+                norm_poss_tot = st_season_real.get("poss", 0)
+                norm_poss_game = norm_poss_tot / num_partits if num_partits > 0 else 0.0
+                pace_season = norm_poss_game
+                season_oer = st_season_real.get("oer", 0)
+                season_der = st_season_real.get("der", 0)
+                season_net = st_season_real.get("net_rtg", season_oer - season_der)
+            else:
+                norm_poss_tot = 1.0
+                norm_poss_game = 0.0
+                pace_season = 0.0
+                season_oer = 0.0
+                season_der = 0.0
+                season_net = 0.0
 
-            for gid in valid_ids:
-                gb = comp_box[comp_box["game_id"].astype(str) == str(gid)]
-                gl = comp_lineups[
-                    comp_lineups["game_id"].astype(str) == str(gid)
-                ]
-                ga = comp_adv[comp_adv["game_id"].astype(str) == str(gid)]
-
-                # Punts d'Argentona del partit
-                g_tpts = float(
-                    pd.to_numeric(gb["Points"], errors="coerce").fillna(0).sum()
-                )
-                if g_tpts == 0 and not ga.empty:
-                    sc_r = ga[
-                        ga["Metric"]
-                        .astype(str)
-                        .str.contains(
-                            "Game Score|Score|Marcador",
-                            case=False,
-                            na=False,
-                        )
-                    ]
-                    if not sc_r.empty:
-                        g_tpts = float(sc_r["Team_Value"].values[0])
-
-                # Punts del Rival del partit (agafem el marcador oficial de Advanced Metrics)
-                g_opts = 0.0
-                if not ga.empty:
-                    sc_r = ga[
-                        ga["Metric"]
-                        .astype(str)
-                        .str.contains(
-                            "Game Score|Score|Marcador",
-                            case=False,
-                            na=False,
-                        )
-                    ]
-                    if not sc_r.empty:
-                        g_opts = float(sc_r["Opp_Value"].values[0])
-
-                if g_opts == 0 and not gl.empty:
-                    g_opts = float(
-                        pd.to_numeric(gl["PTS_Agn"], errors="coerce")
-                        .fillna(0)
-                        .sum()
-                    )
-
-                team_pts_list.append(g_tpts)
-                opp_pts_list.append(g_opts)
-
-                # Possessions del partit
-                g_tfga = (
-                    safe_col_sum(gb, "2PA")
-                    + safe_col_sum(gb, "3PA")
-                    if not gb.empty
-                    else 0.0
-                )
-                g_tfta = safe_col_sum(gb, "FTA") if not gb.empty else 0.0
-                g_toreb = safe_col_sum(gb, "Off Reb") if not gb.empty else 0.0
-                g_ttov = safe_col_sum(gb, "Turnovers") if not gb.empty else 0.0
-                g_tposs = g_tfga + 0.44 * g_tfta - g_toreb + g_ttov
-
-                g_ofga = (
-                    safe_col_sum(gl, "Rim_FGA_Agn")
-                    + safe_col_sum(gl, "Paint_FGA_Agn")
-                    + safe_col_sum(gl, "MR_FGA_Agn")
-                    + safe_col_sum(gl, "Cor3_FGA_Agn")
-                    + safe_col_sum(gl, "ATB3_FGA_Agn")
-                    if not gl.empty
-                    else 0.0
-                )
-                g_ofta = safe_col_sum(gl, "FTA_Agn") if not gl.empty else 0.0
-                g_ooreb = safe_col_sum(gl, "OREB_Agn") if not gl.empty else 0.0
-                g_otov = safe_col_sum(gl, "TOV_Agn") if not gl.empty else 0.0
-                g_oposs = g_ofga + 0.44 * g_ofta - g_ooreb + g_otov
-
-                if g_tposs >= 15.0 and g_oposs >= 15.0:
-                    g_match_poss = 0.5 * (g_tposs + g_oposs)
-                elif g_tposs >= 15.0:
-                    g_match_poss = g_tposs
-                elif g_oposs >= 15.0:
-                    g_match_poss = g_oposs
-                else:
-                    g_match_poss = 80.0
-
-                game_possessions_list.append(g_match_poss)
-
-            # Sumatoris totals reals
-            team_pts = sum(team_pts_list)
-            opp_pts = sum(opp_pts_list)
-            norm_poss_tot = sum(game_possessions_list)
-            norm_poss_game = (
-                norm_poss_tot / num_partits if num_partits > 0 else 0.0
-            )
-
-            tot_team_min = comp_box["MIN"].apply(parse_min_to_float).sum()
-            pace_season = (
-                (norm_poss_tot / tot_team_min) * 200.0
-                if tot_team_min >= 100.0 * num_partits
-                else norm_poss_game
-            )
-
-            # OER i DER reals de la temporada
-            season_oer = (
-                (team_pts / norm_poss_tot) * 100.0 if norm_poss_tot > 0 else 0.0
-            )
-            season_der = (
-                (opp_pts / norm_poss_tot) * 100.0 if norm_poss_tot > 0 else 0.0
-            )
-            season_net = season_oer - season_der
             ppg_team = team_pts / num_partits if num_partits > 0 else 0.0
             ppg_opp = opp_pts / num_partits if num_partits > 0 else 0.0
 
