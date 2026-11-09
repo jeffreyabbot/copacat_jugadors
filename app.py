@@ -797,30 +797,53 @@ from itertools import combinations
 
 from itertools import combinations
 
-def get_nman_combos_summary(l_df, player_options, n=2, target_p_tuple=None, min_poss=5):
-    """Calcula Duos (2) i Trios (3) utilitzant el motor oficial aggregate_lineup_data."""
-    if l_df.empty or not player_options:
+from itertools import combinations
+
+def get_nman_combos_summary(l_df, b_df_or_players, n=2, target_p_num=None, target_p_tuple=None, min_poss=5):
+    """Calcula Duos (2) i Trios (3) de forma segura i compatible amb qualsevol estil de crida."""
+    if l_df.empty:
         return pd.DataFrame()
 
-    # Pre-calculem les màscares booleanes de presència per a cada jugador (instantani)
-    p_masks = {}
-    for p_tuple in player_options:
-        p_label, p_num, p_name = p_tuple
-        p_masks[p_tuple] = l_df.apply(lambda r: is_player_in_lineup(r, p_num, p_name), axis=1).values
-
-    combos_to_eval = []
-    if target_p_tuple:
-        # Combinacions que contenen obligatòriament el jugador objectiu
-        other_players = [p for p in player_options if p != target_p_tuple]
-        for others in combinations(other_players, n - 1):
-            combos_to_eval.append((target_p_tuple,) + others)
+    # 1. Normalitzem player_options tant si arriba un DataFrame (b_df) com una llista
+    if isinstance(b_df_or_players, pd.DataFrame):
+        clean_b = b_df_or_players[~b_df_or_players["Player"].astype(str).str.lower().isin(["totals", "total", "opponent", "team", "equip"])].copy()
+        grouped_p = clean_b.groupby(["Player", "Name"]).size().reset_index()
+        player_options = []
+        for _, r in grouped_p.iterrows():
+            p_num = str(r["Player"]).replace("#", "").strip()
+            p_name = str(r["Name"]).strip()
+            player_options.append((f"#{p_num} {p_name}", p_num, p_name))
     else:
-        # Totes les combinacions possibles de l'equip
+        player_options = list(b_df_or_players)
+
+    if not player_options:
+        return pd.DataFrame()
+
+    # 2. Identifiquem el jugador tant si ens arriba el número ('24') com el tuple
+    target_tuple = target_p_tuple
+    if target_tuple is None and target_p_num is not None:
+        t_num_clean = str(target_p_num).replace("#", "").strip()
+        for p_tup in player_options:
+            if str(p_tup[1]).replace("#", "").strip() == t_num_clean:
+                target_tuple = p_tup
+                break
+
+    # 3. Pre-calculem les màscares de presència dels jugadors a pista
+    p_masks = {}
+    for p_tup in player_options:
+        p_label, p_num, p_name = p_tup
+        p_masks[p_tup] = l_df.apply(lambda r: is_player_in_lineup(r, p_num, p_name), axis=1).values
+
+    # 4. Generem les combinacions
+    if target_tuple:
+        other_players = [p for p in player_options if p != target_tuple]
+        combos_to_eval = [(target_tuple,) + others for others in combinations(other_players, n - 1)]
+    else:
         combos_to_eval = list(combinations(player_options, n))
 
+    # 5. Calculem possessions i mètriques reals amb el motor oficial
     rows = []
     for combo in combos_to_eval:
-        # Màscara d'intersecció: tots els jugadors del combo han de ser a pista alhora
         combo_mask = p_masks[combo[0]].copy()
         for p in combo[1:]:
             combo_mask &= p_masks[p]
@@ -1029,14 +1052,14 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     st.markdown("---")
     st.subheader(f"🤝 Anàlisi de Combinacions i Química ({p_label})")
 
-    # A) Targetes ràpides: Millor i Pitjor Parella del Jugador (amb un mínim de 10 poss)
-    df_duos_player = get_nman_combos_summary(l_df, b_df, n=2, target_p_num=p_num, min_poss=10 if key_prefix == "season" else 3)
+    # A) Targetes ràpides: Millor i Pitjor Parella del Jugador seleccionat
+    min_poss_cards = 8 if key_prefix == "season" else 2
+    df_duos_player = get_nman_combos_summary(l_df, player_options, n=2, target_p_tuple=selected_p_tuple, min_poss=min_poss_cards)
 
-    if not df_duos_player.empty and len(df_duos_player) >= 2:
+    if not df_duos_player.empty:
         best_duo = df_duos_player.iloc[0]
         worst_duo = df_duos_player.iloc[-1]
 
-        # Traiem el nom del propi jugador per mostrar clarament el company
         best_partner = best_duo["Combinació"].replace(p_label, "").replace("+", "").strip()
         worst_partner = worst_duo["Combinació"].replace(p_label, "").replace("+", "").strip()
 
@@ -1055,7 +1078,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
             )
         st.markdown("<br>", unsafe_allow_html=True)
 
-    # B) Controls per explorar qualsevol combinació
+    # B) Controls per explorar
     col_c1, col_c2, col_c3 = st.columns([1.2, 1, 1.2])
     with col_c1:
         combo_type = st.segmented_control(
@@ -1075,31 +1098,46 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
             "Possessions mínimes",
             min_value=1,
             max_value=80 if key_prefix == "season" else 20,
-            value=8 if key_prefix == "season" else 2,
+            value=5 if key_prefix == "season" else 2,
             step=1,
             key=f"{key_prefix}_slider_combo_poss"
         )
 
-    # C) Càlcul i visualització de la taula
-    n_size = 2 if "2" in combo_type else (3 if "3" in combo_type else 5)
-    target_arg = p_num if filter_target_only else None
+    # C) Càlcul segons la mida triada
+    target_arg = selected_p_tuple if filter_target_only else None
 
-    df_combos = get_nman_combos_summary(l_df, b_df, n=n_size, target_p_num=target_arg, min_poss=min_p_slider)
+    if "5" in combo_type:
+        # Per a 5 jugadors utilitzem la funció nativa que ja funcionava
+        target_lineups = df_on if filter_target_only else l_df
+        df_combos = get_5man_lineup_summary(target_lineups, b_df, min_minutes=0.0)
+        if not df_combos.empty and "POSS" in df_combos.columns:
+            df_combos = df_combos[df_combos["POSS"] >= min_p_slider].reset_index(drop=True)
+            if "MIN" in df_combos.columns:
+                df_combos = df_combos.drop(columns=["MIN"])
+    else:
+        # Per a 2 i 3 jugadors utilitzem el nou motor
+        n_size = 2 if "2" in combo_type else 3
+        df_combos = get_nman_combos_summary(l_df, player_options, n=n_size, target_p_tuple=target_arg, min_poss=min_p_slider)
 
+    # D) Visualització de la taula
     if not df_combos.empty:
         calc_h = int((len(df_combos) + 1) * 36) + 3
+        col_cfg = {
+            "Combinació": st.column_config.TextColumn("Combinació de Jugadors", width="large"),
+            "Net Rating": st.column_config.NumberColumn(format="%+.1f"),
+            "+/-": st.column_config.NumberColumn(format="%+d"),
+            "eFG%": st.column_config.NumberColumn(format="%.1f%%"),
+            "eFG% Riv": st.column_config.NumberColumn(format="%.1f%%"),
+        }
+        if "Lineup" in df_combos.columns:
+            col_cfg["Lineup"] = st.column_config.TextColumn("Quintet de 5 Jugadors", width="large")
+
         st.dataframe(
             df_combos,
             height=min(calc_h, 500),
             use_container_width=True,
             hide_index=True,
-            column_config={
-                "Combinació": st.column_config.TextColumn("Combinació de Jugadors", width="large"),
-                "Net Rating": st.column_config.NumberColumn(format="%+.1f"),
-                "+/-": st.column_config.NumberColumn(format="%+d"),
-                "eFG%": st.column_config.NumberColumn(format="%.1f%%"),
-                "eFG% Riv": st.column_config.NumberColumn(format="%.1f%%"),
-            }
+            column_config=col_cfg
         )
     else:
         st.info("No hi ha combinacions que compleixin el mínim de possessions seleccionat.")
