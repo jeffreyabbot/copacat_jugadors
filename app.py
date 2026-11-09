@@ -1065,21 +1065,47 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
 
         col_best, col_worst = st.columns(2)
         with col_best:
-            st.success(
-                f"🌟 **Millor Parella:** amb **{best_partner}**\n\n"
-                f"• **Net Rating:** `{best_duo['Net Rating']:+.1f}` pts/100  |  **+/-:** `{best_duo['+/-']:+d}` pts\n\n"
-                f"• **Atac (OER):** `{best_duo['OER (Atac)']:.1f}`  |  **Defensa (DER):** `{best_duo['DER (Defensa)']:.1f}`  ({best_duo['POSS']} poss)"
+            st.markdown(
+                f"""
+                <div style="background-color: rgba(208, 0, 0, 0.07); border: 1px solid rgba(208, 0, 0, 0.25); border-left: 5px solid #d00000; border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
+                    <div style="font-size: 1.05rem; font-weight: 700; color: #d00000; margin-bottom: 6px;">
+                        🌟 Millor Parella: amb {best_partner}
+                    </div>
+                    <div style="font-size: 0.95rem; color: #212529; margin-bottom: 4px;">
+                        • Net Rating: <b style="color: #d00000;">{best_duo['Net Rating']:+.1f}</b> pts/100 &nbsp;|&nbsp; +/-: <b style="color: #d00000;">{best_duo['+/-']:+d}</b> pts
+                    </div>
+                    <div style="font-size: 0.9rem; color: #495057;">
+                        • Atac (OER): <b>{best_duo['OER (Atac)']:.1f}</b> &nbsp;|&nbsp; Defensa (DER): <b>{best_duo['DER (Defensa)']:.1f}</b> ({best_duo['POSS']} poss)
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
         with col_worst:
-            st.error(
-                f"⚠️ **Pitjor Parella:** amb **{worst_partner}**\n\n"
-                f"• **Net Rating:** `{worst_duo['Net Rating']:+.1f}` pts/100  |  **+/-:** `{worst_duo['+/-']:+d}` pts\n\n"
-                f"• **Atac (OER):** `{worst_duo['OER (Atac)']:.1f}`  |  **Defensa (DER):** `{worst_duo['DER (Defensa)']:.1f}`  ({worst_duo['POSS']} poss)"
+            st.markdown(
+                f"""
+                <div style="background-color: rgba(0, 119, 182, 0.07); border: 1px solid rgba(0, 119, 182, 0.25); border-left: 5px solid #0077b6; border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
+                    <div style="font-size: 1.05rem; font-weight: 700; color: #0077b6; margin-bottom: 6px;">
+                        ⚠️ Pitjor Parella: amb {worst_partner}
+                    </div>
+                    <div style="font-size: 0.95rem; color: #212529; margin-bottom: 4px;">
+                        • Net Rating: <b style="color: #0077b6;">{worst_duo['Net Rating']:+.1f}</b> pts/100 &nbsp;|&nbsp; +/-: <b style="color: #0077b6;">{worst_duo['+/-']:+d}</b> pts
+                    </div>
+                    <div style="font-size: 0.9rem; color: #495057;">
+                        • Atac (OER): <b>{worst_duo['OER (Atac)']:.1f}</b> &nbsp;|&nbsp; Defensa (DER): <b>{worst_duo['DER (Defensa)']:.1f}</b> ({worst_duo['POSS']} poss)
+                    </div>
+                </div>
+                """,
+                unsafe_allow_html=True,
             )
-        st.markdown("<br>", unsafe_allow_html=True)
 
-    # B) Controls per explorar
-    col_c1, col_c2, col_c3 = st.columns([1.2, 1, 1.2])
+    # B) Controls per explorar (Amb espaiat ampli i alineació a la base)
+    st.markdown("<br>", unsafe_allow_html=True)
+    try:
+        col_c1, col_c2, col_c3 = st.columns([2.2, 1.3, 1.4], gap="large", vertical_alignment="bottom")
+    except TypeError:
+        col_c1, col_c2, col_c3 = st.columns([2.2, 1.3, 1.4])
+
     with col_c1:
         combo_type = st.segmented_control(
             "Mida de la combinació",
@@ -1102,6 +1128,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
             step=1,
             key=f"{key_prefix}_slider_combo_poss"
         )
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # C) Càlcul segons la mida triada
     target_arg = selected_p_tuple if filter_target_only else None
