@@ -187,6 +187,22 @@ st.markdown(
     /* --------------------------------------------------------- */
     /* 3. DELTES EN VERMELL (BO) I BLAU (DOLENT)                 */
     /* --------------------------------------------------------- */
+    /* A la targeta 4 (Defensa / DER), baixar és BO (Vermell) i pujar és DOLENT (Blau) */
+    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {
+        color: #d00000 !important;
+        background-color: rgba(208, 0, 0, 0.12) !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg {
+        fill: #d00000 !important;
+    }
+
+    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
+        color: #0077b6 !important;
+        background-color: rgba(0, 119, 182, 0.12) !important;
+    }
+    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg {
+        fill: #0077b6 !important;
+    }
     div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
         color: #d00000 !important;
         background-color: rgba(208, 0, 0, 0.12) !important;
@@ -882,11 +898,11 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
         f"{oer_on:.1f} pts",
         delta=f"{oer_on - oer_off:+.1f} pts/100 vs off",
     )
+    der_diff = der_on - der_off
     k4.metric(
         "🛡️ Eficiència Defensa (DER)",
         f"{der_on:.1f} pts",
-        delta=f"{der_off - der_on:+.1f} pts/100 vs off",
-        delta_color="inverse",
+        delta=f"{der_diff:+.1f} pts/100 vs off",
     )
     k5.metric(
         "⚖️ Marcador +/- Real",
@@ -896,14 +912,35 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
 
     st.markdown("---")
 
-    # 5. TAULES COMPARATIVES AMB LA COLUMNA "GLOBAL EQUIP"
+    # 5. TAULES COMPARATIVES: BALANÇ NET SEPARAT D'ATAC I DEFENSA
     st.subheader(f"📊 Impacte On vs Off de {p_label}")
+
+    # A) Mini-taula superior: Balanç Net Total (Híbrid Atac + Defensa)
+    df_net = pd.DataFrame([
+        {
+            "Mètrica": "⚡ Net Rating (Pts/100)",
+            "Amb Jugador (ON)": f"{st_on.get('net_rtg', 0):+.1f}",
+            "Global Equip": f"{st_tot.get('net_rtg', 0):+.1f}",
+            "Sense Jugador (OFF)": f"{st_off.get('net_rtg', 0):+.1f}",
+            "Diferencial": f"{st_on.get('net_rtg', 0) - st_off.get('net_rtg', 0):+.1f}",
+        },
+        {
+            "Mètrica": "⚖️ Marcador +/- Real",
+            "Amb Jugador (ON)": f"{int(pm_on):+d} pts",
+            "Global Equip": f"{int(pm_tot):+d} pts",
+            "Sense Jugador (OFF)": f"{int(pm_off):+d} pts",
+            "Diferencial": f"{int(pm_on - pm_off):+d} pts",
+        },
+    ])
+    st.dataframe(df_net, use_container_width=True, hide_index=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # B) Dues columnes pures: Atac (esquerra) i Defensa (dreta)
     col_offense, col_defense = st.columns(2)
 
     with col_offense:
         st.markdown("#### 🔴 Atac d'Argentona")
         df_offense = pd.DataFrame([
-            {"Mètrica": "⚡ Net Rating", "Amb Jugador (ON)": f"{st_on.get('net_rtg', 0):+.1f}", "Global Equip": f"{st_tot.get('net_rtg', 0):+.1f}", "Sense Jugador (OFF)": f"{st_off.get('net_rtg', 0):+.1f}", "Diferencial": f"{st_on.get('net_rtg', 0) - st_off.get('net_rtg', 0):+.1f}"},
             {"Mètrica": "🎯 Eficiència Atac (OER)", "Amb Jugador (ON)": f"{st_on.get('oer', 0):.1f} pts", "Global Equip": f"{st_tot.get('oer', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('oer', 0):.1f} pts", "Diferencial": f"{st_on.get('oer', 0) - st_off.get('oer', 0):+.1f}"},
             {"Mètrica": "1. Tir Efectiu (eFG%)", "Amb Jugador (ON)": f"{st_on.get('efg', 0):.1f}%", "Global Equip": f"{st_tot.get('efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('efg', 0):.1f}%", "Diferencial": f"{st_on.get('efg', 0) - st_off.get('efg', 0):+.1f}%"},
             {"Mètrica": "2. % Tir de 2 (2P%)", "Amb Jugador (ON)": f"{st_on.get('pct_2p', 0):.1f}% ({int(st_on.get('2pm',0))}/{int(st_on.get('2pa',0))})", "Global Equip": f"{st_tot.get('pct_2p', 0):.1f}% ({int(st_tot.get('2pm',0))}/{int(st_tot.get('2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_2p', 0):.1f}% ({int(st_off.get('2pm',0))}/{int(st_off.get('2pa',0))})", "Diferencial": f"{st_on.get('pct_2p', 0) - st_off.get('pct_2p', 0):+.1f}%"},
