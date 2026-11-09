@@ -793,6 +793,92 @@ def clean_txt(t):
         if unicodedata.category(c) != "Mn"
     ).lower().strip()
 
+from itertools import combinations
+
+def get_nman_combos_summary(l_df, b_df, n=2, target_p_num=None, min_poss=5):
+    """Calcula el rendiment de combinacions de N jugadors (Duos, Trios o Quintets)."""
+    if l_df.empty:
+        return pd.DataFrame()
+
+    clean_b = b_df[~b_df["Player"].astype(str).str.lower().isin(["totals", "total", "opponent", "team", "equip"])].copy()
+    grouped_p = clean_b.groupby(["Player", "Name"]).size().reset_index()
+    p_list = [(str(r["Player"]).replace("#", "").strip(), str(r["Name"]).strip()) for _, r in grouped_p.iterrows()]
+
+    combo_stats = {}
+
+    for _, row in l_df.iterrows():
+        # Identifiquem quins jugadors de l'equip estan a pista en aquest quintet
+        present = [f"#{p_num} {p_name}" for p_num, p_name in p_list if is_player_in_lineup(row, p_num, p_name)]
+        if len(present) < n:
+            continue
+
+        poss = float(row.get("POSS", 0))
+        if poss <= 0:
+            continue
+
+        pts = float(row.get("PTS", 0))
+        pts_agn = float(row.get("PTS_Agn", 0))
+
+        # Tirs i encerts per a l'eFG%
+        fgm = float(pd.to_numeric(row.get("2PM", 0), errors="coerce") + pd.to_numeric(row.get("3PM", 0), errors="coerce"))
+        fga = float(pd.to_numeric(row.get("2PA", 0), errors="coerce") + pd.to_numeric(row.get("3PA", 0), errors="coerce"))
+        t3m = float(pd.to_numeric(row.get("3PM", 0), errors="coerce"))
+
+        opp_fgm = float(pd.to_numeric(row.get("2PM_Agn", 0), errors="coerce") + pd.to_numeric(row.get("3PM_Agn", 0), errors="coerce"))
+        opp_fga = float(pd.to_numeric(row.get("2PA_Agn", 0), errors="coerce") + pd.to_numeric(row.get("3PA_Agn", 0), errors="coerce"))
+        opp_t3m = float(pd.to_numeric(row.get("3PM_Agn", 0), errors="coerce"))
+
+        # Generem totes les combinacions de mida N presents en aquest tram de joc
+        for combo in combinations(sorted(present), n):
+            # Si filtrem per un jugador concret, la combinació l'ha de contenir obligatòriament
+            if target_p_num and not any(p.startswith(f"#{target_p_num} ") for p in combo):
+                continue
+
+            if combo not in combo_stats:
+                combo_stats[combo] = {
+                    "poss": 0.0, "pts": 0.0, "pts_agn": 0.0,
+                    "fgm": 0.0, "fga": 0.0, "3pm": 0.0,
+                    "opp_fgm": 0.0, "opp_fga": 0.0, "opp_3pm": 0.0
+                }
+            c = combo_stats[combo]
+            c["poss"] += poss
+            c["pts"] += pts
+            c["pts_agn"] += pts_agn
+            c["fgm"] += fgm
+            c["fga"] += fga
+            c["3pm"] += t3m
+            c["opp_fgm"] += opp_fgm
+            c["opp_fga"] += opp_fga
+            c["opp_3pm"] += opp_t3m
+
+    rows = []
+    for combo, c in combo_stats.items():
+        if c["poss"] < min_poss:
+            continue
+        poss = c["poss"]
+        oer = (c["pts"] / poss * 100.0) if poss > 0 else 0.0
+        der = (c["pts_agn"] / poss * 100.0) if poss > 0 else 0.0
+        net = oer - der
+        pm = c["pts"] - c["pts_agn"]
+        efg = ((c["fgm"] + 0.5 * c["3pm"]) / c["fga"] * 100.0) if c["fga"] > 0 else 0.0
+        opp_efg = ((c["opp_fgm"] + 0.5 * c["opp_3pm"]) / c["opp_fga"] * 100.0) if c["opp_fga"] > 0 else 0.0
+
+        rows.append({
+            "Combinació": " + ".join(combo),
+            "POSS": int(round(poss)),
+            "+/-": int(round(pm)),
+            "Net Rating": round(net, 1),
+            "OER (Atac)": round(oer, 1),
+            "DER (Defensa)": round(der, 1),
+            "eFG%": round(efg, 1),
+            "eFG% Riv": round(opp_efg, 1),
+        })
+
+    df_out = pd.DataFrame(rows)
+    if not df_out.empty:
+        df_out = df_out.sort_values(by="Net Rating", ascending=False).reset_index(drop=True)
+    return df_out
+
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
@@ -966,44 +1052,84 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
         ])
         st.dataframe(df_defense, use_container_width=True, hide_index=True)
 
-    # 6. Taula de Quintets de 5 Jugadors
+    # 6. ANÀLISI DE QUÍMICA: COMBINACIONS DE 2, 3 I 5 JUGADORS
     st.markdown("---")
-    st.subheader("👥 Quintets de 5 Jugadors")
-    col_q1, col_q2 = st.columns([1, 2])
-    with col_q1:
-        filter_player_lineups = st.checkbox(
-            f"Mostrar només quintets amb {p_label}",
-            value=False,
-            key=f"{key_prefix}_check_p_lineups"
+    st.subheader(f"🤝 Anàlisi de Combinacions i Química ({p_label})")
+
+    # A) Targetes ràpides: Millor i Pitjor Parella del Jugador (amb un mínim de 10 poss)
+    df_duos_player = get_nman_combos_summary(l_df, b_df, n=2, target_p_num=p_num, min_poss=10 if key_prefix == "season" else 3)
+
+    if not df_duos_player.empty and len(df_duos_player) >= 2:
+        best_duo = df_duos_player.iloc[0]
+        worst_duo = df_duos_player.iloc[-1]
+
+        # Traiem el nom del propi jugador per mostrar clarament el company
+        best_partner = best_duo["Combinació"].replace(p_label, "").replace("+", "").strip()
+        worst_partner = worst_duo["Combinació"].replace(p_label, "").replace("+", "").strip()
+
+        col_best, col_worst = st.columns(2)
+        with col_best:
+            st.success(
+                f"🌟 **Millor Parella:** amb **{best_partner}**\n\n"
+                f"• **Net Rating:** `{best_duo['Net Rating']:+.1f}` pts/100  |  **+/-:** `{best_duo['+/-']:+d}` pts\n\n"
+                f"• **Atac (OER):** `{best_duo['OER (Atac)']:.1f}`  |  **Defensa (DER):** `{best_duo['DER (Defensa)']:.1f}`  ({best_duo['POSS']} poss)"
+            )
+        with col_worst:
+            st.error(
+                f"⚠️ **Pitjor Parella:** amb **{worst_partner}**\n\n"
+                f"• **Net Rating:** `{worst_duo['Net Rating']:+.1f}` pts/100  |  **+/-:** `{worst_duo['+/-']:+d}` pts\n\n"
+                f"• **Atac (OER):** `{worst_duo['OER (Atac)']:.1f}`  |  **Defensa (DER):** `{worst_duo['DER (Defensa)']:.1f}`  ({worst_duo['POSS']} poss)"
+            )
+        st.markdown("<br>", unsafe_allow_html=True)
+
+    # B) Controls per explorar qualsevol combinació
+    col_c1, col_c2, col_c3 = st.columns([1.2, 1, 1.2])
+    with col_c1:
+        combo_type = st.segmented_control(
+            "Mida de la combinació",
+            options=["2 Jugadors (Duos)", "3 Jugadors (Trios)", "5 Jugadors (Quintets)"],
+            default="2 Jugadors (Duos)",
+            key=f"{key_prefix}_combo_type"
         )
-    with col_q2:
-        min_poss_val = st.slider(
-            "Possessions mínimes jugades pel quintet",
-            min_value=0,
-            max_value=100 if key_prefix == "season" else 30,
-            value=5 if key_prefix == "season" else 1,
+    with col_c2:
+        filter_target_only = st.checkbox(
+            f"Només amb {p_label}",
+            value=True,
+            key=f"{key_prefix}_check_filter_combo"
+        )
+    with col_c3:
+        min_p_slider = st.slider(
+            "Possessions mínimes",
+            min_value=1,
+            max_value=80 if key_prefix == "season" else 20,
+            value=8 if key_prefix == "season" else 2,
             step=1,
-            key=f"{key_prefix}_slider_lineup_poss"
+            key=f"{key_prefix}_slider_combo_poss"
         )
 
-    target_lineups = df_on if filter_player_lineups else l_df
-    df_5man = get_5man_lineup_summary(target_lineups, b_df, min_minutes=0.0)
+    # C) Càlcul i visualització de la taula
+    n_size = 2 if "2" in combo_type else (3 if "3" in combo_type else 5)
+    target_arg = p_num if filter_target_only else None
 
-    if not df_5man.empty and "POSS" in df_5man.columns:
-        df_5man = df_5man[df_5man["POSS"] >= min_poss_val].reset_index(drop=True)
-        if "MIN" in df_5man.columns:
-            df_5man = df_5man.drop(columns=["MIN"])
+    df_combos = get_nman_combos_summary(l_df, b_df, n=n_size, target_p_num=target_arg, min_poss=min_p_slider)
 
-    if not df_5man.empty:
-        calc_h = int((len(df_5man) + 1) * 36) + 3
+    if not df_combos.empty:
+        calc_h = int((len(df_combos) + 1) * 36) + 3
         st.dataframe(
-            df_5man,
-            height=calc_h,
+            df_combos,
+            height=min(calc_h, 500),
             use_container_width=True,
             hide_index=True,
+            column_config={
+                "Combinació": st.column_config.TextColumn("Combinació de Jugadors", width="large"),
+                "Net Rating": st.column_config.NumberColumn(format="%+.1f"),
+                "+/-": st.column_config.NumberColumn(format="%+d"),
+                "eFG%": st.column_config.NumberColumn(format="%.1f%%"),
+                "eFG% Riv": st.column_config.NumberColumn(format="%.1f%%"),
+            }
         )
     else:
-        st.info("No hi ha quintets que compleixin els filtres de possessions seleccionats.")
+        st.info("No hi ha combinacions que compleixin el mínim de possessions seleccionat.")
 
 # =============================================================
 # MODO 1: PARTIT INDIVIDUAL
