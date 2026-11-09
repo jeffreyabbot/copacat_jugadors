@@ -795,83 +795,56 @@ def clean_txt(t):
 
 from itertools import combinations
 
-def get_nman_combos_summary(l_df, b_df, n=2, target_p_num=None, min_poss=5):
-    """Calcula el rendiment de combinacions de N jugadors (Duos, Trios o Quintets)."""
-    if l_df.empty:
+from itertools import combinations
+
+def get_nman_combos_summary(l_df, player_options, n=2, target_p_tuple=None, min_poss=5):
+    """Calcula Duos (2) i Trios (3) utilitzant el motor oficial aggregate_lineup_data."""
+    if l_df.empty or not player_options:
         return pd.DataFrame()
 
-    clean_b = b_df[~b_df["Player"].astype(str).str.lower().isin(["totals", "total", "opponent", "team", "equip"])].copy()
-    grouped_p = clean_b.groupby(["Player", "Name"]).size().reset_index()
-    p_list = [(str(r["Player"]).replace("#", "").strip(), str(r["Name"]).strip()) for _, r in grouped_p.iterrows()]
+    # Pre-calculem les màscares booleanes de presència per a cada jugador (instantani)
+    p_masks = {}
+    for p_tuple in player_options:
+        p_label, p_num, p_name = p_tuple
+        p_masks[p_tuple] = l_df.apply(lambda r: is_player_in_lineup(r, p_num, p_name), axis=1).values
 
-    combo_stats = {}
-
-    for _, row in l_df.iterrows():
-        # Identifiquem quins jugadors de l'equip estan a pista en aquest quintet
-        present = [f"#{p_num} {p_name}" for p_num, p_name in p_list if is_player_in_lineup(row, p_num, p_name)]
-        if len(present) < n:
-            continue
-
-        poss = float(row.get("POSS", 0))
-        if poss <= 0:
-            continue
-
-        pts = float(row.get("PTS", 0))
-        pts_agn = float(row.get("PTS_Agn", 0))
-
-        # Tirs i encerts per a l'eFG%
-        fgm = float(pd.to_numeric(row.get("2PM", 0), errors="coerce") + pd.to_numeric(row.get("3PM", 0), errors="coerce"))
-        fga = float(pd.to_numeric(row.get("2PA", 0), errors="coerce") + pd.to_numeric(row.get("3PA", 0), errors="coerce"))
-        t3m = float(pd.to_numeric(row.get("3PM", 0), errors="coerce"))
-
-        opp_fgm = float(pd.to_numeric(row.get("2PM_Agn", 0), errors="coerce") + pd.to_numeric(row.get("3PM_Agn", 0), errors="coerce"))
-        opp_fga = float(pd.to_numeric(row.get("2PA_Agn", 0), errors="coerce") + pd.to_numeric(row.get("3PA_Agn", 0), errors="coerce"))
-        opp_t3m = float(pd.to_numeric(row.get("3PM_Agn", 0), errors="coerce"))
-
-        # Generem totes les combinacions de mida N presents en aquest tram de joc
-        for combo in combinations(sorted(present), n):
-            # Si filtrem per un jugador concret, la combinació l'ha de contenir obligatòriament
-            if target_p_num and not any(p.startswith(f"#{target_p_num} ") for p in combo):
-                continue
-
-            if combo not in combo_stats:
-                combo_stats[combo] = {
-                    "poss": 0.0, "pts": 0.0, "pts_agn": 0.0,
-                    "fgm": 0.0, "fga": 0.0, "3pm": 0.0,
-                    "opp_fgm": 0.0, "opp_fga": 0.0, "opp_3pm": 0.0
-                }
-            c = combo_stats[combo]
-            c["poss"] += poss
-            c["pts"] += pts
-            c["pts_agn"] += pts_agn
-            c["fgm"] += fgm
-            c["fga"] += fga
-            c["3pm"] += t3m
-            c["opp_fgm"] += opp_fgm
-            c["opp_fga"] += opp_fga
-            c["opp_3pm"] += opp_t3m
+    combos_to_eval = []
+    if target_p_tuple:
+        # Combinacions que contenen obligatòriament el jugador objectiu
+        other_players = [p for p in player_options if p != target_p_tuple]
+        for others in combinations(other_players, n - 1):
+            combos_to_eval.append((target_p_tuple,) + others)
+    else:
+        # Totes les combinacions possibles de l'equip
+        combos_to_eval = list(combinations(player_options, n))
 
     rows = []
-    for combo, c in combo_stats.items():
-        if c["poss"] < min_poss:
-            continue
-        poss = c["poss"]
-        oer = (c["pts"] / poss * 100.0) if poss > 0 else 0.0
-        der = (c["pts_agn"] / poss * 100.0) if poss > 0 else 0.0
-        net = oer - der
-        pm = c["pts"] - c["pts_agn"]
-        efg = ((c["fgm"] + 0.5 * c["3pm"]) / c["fga"] * 100.0) if c["fga"] > 0 else 0.0
-        opp_efg = ((c["opp_fgm"] + 0.5 * c["opp_3pm"]) / c["opp_fga"] * 100.0) if c["opp_fga"] > 0 else 0.0
+    for combo in combos_to_eval:
+        # Màscara d'intersecció: tots els jugadors del combo han de ser a pista alhora
+        combo_mask = p_masks[combo[0]].copy()
+        for p in combo[1:]:
+            combo_mask &= p_masks[p]
 
+        if not combo_mask.any():
+            continue
+
+        df_sub = l_df[combo_mask]
+        st = aggregate_lineup_data(df_sub)
+        poss = st.get("poss", 0)
+
+        if poss < min_poss:
+            continue
+
+        combo_labels = [p[0] for p in combo]
         rows.append({
-            "Combinació": " + ".join(combo),
+            "Combinació": " + ".join(sorted(combo_labels)),
             "POSS": int(round(poss)),
-            "+/-": int(round(pm)),
-            "Net Rating": round(net, 1),
-            "OER (Atac)": round(oer, 1),
-            "DER (Defensa)": round(der, 1),
-            "eFG%": round(efg, 1),
-            "eFG% Riv": round(opp_efg, 1),
+            "+/-": int(round(st.get("plus_minus", 0))),
+            "Net Rating": round(st.get("net_rtg", 0), 1),
+            "OER (Atac)": round(st.get("oer", 0), 1),
+            "DER (Defensa)": round(st.get("der", 0), 1),
+            "eFG%": round(st.get("efg", 0), 1),
+            "eFG% Riv": round(st.get("opp_efg", 0), 1),
         })
 
     df_out = pd.DataFrame(rows)
