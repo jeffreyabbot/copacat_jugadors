@@ -1891,7 +1891,7 @@ if view_mode == "Partit Individual":
                         False,
                     ),
                     (
-                        "Kills Defensius (3 Aturades Seguidas)",
+                        "Kills Defensius (3 possessions consecutives sense anotar)",
                         f"{int(kills_t)}",
                         f"{int(kills_o)}",
                         kills_t,
