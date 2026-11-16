@@ -1823,61 +1823,47 @@ if view_mode == "Partit Individual":
                     ),
                     (
                         "PPS en Transició (Contraatac)",
-                        f"{pbp_stats_m.get('fb_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_m.get('fb_pps_o', 0.0):.2f}",
-                        pbp_stats_m.get("fb_pps_t", 0.0),
-                        pbp_stats_m.get("fb_pps_o", 0.0),
-                        abs(
-                            pbp_stats_m.get("fb_pps_t", 0.0)
-                            - pbp_stats_m.get("fb_pps_o", 0.0)
-                        )
-                        >= 0.15,
+                        f"{fb_pps_t_val:.2f}",
+                        f"{fb_pps_o_val:.2f}",
+                        fb_pps_t_val,
+                        fb_pps_o_val,
+                        abs(fb_pps_t_val - fb_pps_o_val) >= 0.15,
                         False,
                     ),
                     (
                         "PPS en Atac Estàtic (5c5)",
-                        f"{pbp_stats_m.get('hc_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_m.get('hc_pps_o', 0.0):.2f}",
-                        pbp_stats_m.get("hc_pps_t", 0.0),
-                        pbp_stats_m.get("hc_pps_o", 0.0),
-                        abs(
-                            pbp_stats_m.get("hc_pps_t", 0.0)
-                            - pbp_stats_m.get("hc_pps_o", 0.0)
-                        )
-                        >= 0.15,
+                        f"{hc_pps_t_val:.2f}",
+                        f"{hc_pps_o_val:.2f}",
+                        hc_pps_t_val,
+                        hc_pps_o_val,
+                        abs(hc_pps_t_val - hc_pps_o_val) >= 0.15,
                         False,
                     ),
                     (
                         "Punts de Pèrdua Viva (PTS OFF TO)",
-                        f"{int(pbp_stats_m.get('pts_off_to_t', 0))}",
-                        f"{int(pbp_stats_m.get('pts_off_to_o', 0))}",
-                        pbp_stats_m.get("pts_off_to_t", 0.0),
-                        pbp_stats_m.get("pts_off_to_o", 0.0),
-                        abs(
-                            pbp_stats_m.get("pts_off_to_t", 0.0)
-                            - pbp_stats_m.get("pts_off_to_o", 0.0)
-                        )
-                        >= 3,
+                        f"{int(round(pto_t_val))}",
+                        f"{int(round(pto_o_val))}",
+                        pto_t_val,
+                        pto_o_val,
+                        abs(pto_t_val - pto_o_val) >= 3,
                         False,
                     ),
                     (
                         "Pèrdues Vives (LTO)",
-                        f"{int(pbp_stats_m.get('lto_t', 0))}",
-                        f"{int(pbp_stats_m.get('lto_o', 0))}",
-                        pbp_stats_m.get("lto_t", 0.0),
-                        pbp_stats_m.get("lto_o", 0.0),
-                        abs(pbp_stats_m.get("lto_t", 0.0) - pbp_stats_m.get("lto_o", 0.0))
-                        >= 2,
+                        f"{int(round(lto_t_val))}",
+                        f"{int(round(lto_o_val))}",
+                        lto_t_val,
+                        lto_o_val,
+                        abs(lto_t_val - lto_o_val) >= 2,
                         True,
                     ),
                     (
                         "Pèrdues Mortes (DTO)",
-                        f"{int(pbp_stats_m.get('dto_t', 0))}",
-                        f"{int(pbp_stats_m.get('dto_o', 0))}",
-                        pbp_stats_m.get("dto_t", 0.0),
-                        pbp_stats_m.get("dto_o", 0.0),
-                        abs(pbp_stats_m.get("dto_t", 0.0) - pbp_stats_m.get("dto_o", 0.0))
-                        >= 2,
+                        f"{int(round(dto_t_val))}",
+                        f"{int(round(dto_o_val))}",
+                        dto_t_val,
+                        dto_o_val,
+                        abs(dto_t_val - dto_o_val) >= 2,
                         True,
                     ),
                     (
@@ -2777,9 +2763,56 @@ else:
                     ["stocks", "steals + blocks"]
                 )
 
-                # Calcular mitjanes per partit
+                # Calcular mitjanes per partit (amb fallback per partit a Advanced Metrics)
                 pbp_stats_s = compute_pbp_advanced_stats(comp_pbp, game_id=None)
                 n_p = float(num_partits) if num_partits > 0 else 1.0
+
+                fb_pps_t_list, fb_pps_o_list = [], []
+                hc_pps_t_list, hc_pps_o_list = [], []
+                pto_t_tot, pto_o_tot = 0.0, 0.0
+                lto_t_tot, lto_o_tot = 0.0, 0.0
+                dto_t_tot, dto_o_tot = 0.0, 0.0
+
+                def _g_adv(d, pats, exclude=None):
+                    for k, v in d.items():
+                        kl = str(k).lower()
+                        if exclude and exclude in kl:
+                            continue
+                        if any(p in kl for p in pats):
+                            try:
+                                val = float(v)
+                                if not np.isnan(val):
+                                    return val
+                            except Exception:
+                                pass
+                    return 0.0
+
+                for gid in valid_ids:
+                    pbp_g = compute_pbp_advanced_stats(comp_pbp, gid)
+                    ga_g = comp_adv[comp_adv["game_id"].astype(str) == str(gid)]
+                    adv_t_g = dict(zip(ga_g["Metric"], ga_g["Team_Value"]))
+                    adv_o_g = dict(zip(ga_g["Metric"], ga_g["Opp_Value"]))
+
+                    pto_t_tot += pbp_g.get("pts_off_to_t", 0.0) or _g_adv(adv_t_g, ["points off live to", "pts off to", "points off"])
+                    pto_o_tot += pbp_g.get("pts_off_to_o", 0.0) or _g_adv(adv_o_g, ["points off live to", "pts off to", "points off"])
+                    lto_t_tot += pbp_g.get("lto_t", 0.0) or _g_adv(adv_t_g, ["live turnovers", "lto"], exclude="off")
+                    lto_o_tot += pbp_g.get("lto_o", 0.0) or _g_adv(adv_o_g, ["live turnovers", "lto"], exclude="off")
+                    dto_t_tot += pbp_g.get("dto_t", 0.0) or _g_adv(adv_t_g, ["dead turnovers", "dto"], exclude="off")
+                    dto_o_tot += pbp_g.get("dto_o", 0.0) or _g_adv(adv_o_g, ["dead turnovers", "dto"], exclude="off")
+
+                    v_fb_t = _g_adv(adv_t_g, ["fastbreak pps", "transició pps", "transicio pps"])
+                    v_fb_o = _g_adv(adv_o_g, ["fastbreak pps", "transició pps", "transicio pps"])
+                    v_hc_t = _g_adv(adv_t_g, ["half-court pps", "estàtic", "estatic"])
+                    v_hc_o = _g_adv(adv_o_g, ["half-court pps", "estàtic", "estatic"])
+                    if v_fb_t > 0: fb_pps_t_list.append(v_fb_t)
+                    if v_fb_o > 0: fb_pps_o_list.append(v_fb_o)
+                    if v_hc_t > 0: hc_pps_t_list.append(v_hc_t)
+                    if v_hc_o > 0: hc_pps_o_list.append(v_hc_o)
+
+                fb_pps_t_s = pbp_stats_s.get("fb_pps_t", 0.0) or (sum(fb_pps_t_list) / len(fb_pps_t_list) if fb_pps_t_list else 0.0)
+                fb_pps_o_s = pbp_stats_s.get("fb_pps_o", 0.0) or (sum(fb_pps_o_list) / len(fb_pps_o_list) if fb_pps_o_list else 0.0)
+                hc_pps_t_s = pbp_stats_s.get("hc_pps_t", 0.0) or (sum(hc_pps_t_list) / len(hc_pps_t_list) if hc_pps_t_list else 0.0)
+                hc_pps_o_s = pbp_stats_s.get("hc_pps_o", 0.0) or (sum(hc_pps_o_list) / len(hc_pps_o_list) if hc_pps_o_list else 0.0)
 
                 table_rows_season = [
                     (
@@ -2820,68 +2853,47 @@ else:
                     ),
                     (
                         "PPS en Transició (Contraatac)",
-                        f"{pbp_stats_s.get('fb_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_s.get('fb_pps_o', 0.0):.2f}",
-                        pbp_stats_s.get("fb_pps_t", 0.0),
-                        pbp_stats_s.get("fb_pps_o", 0.0),
-                        abs(
-                            pbp_stats_s.get("fb_pps_t", 0.0)
-                            - pbp_stats_s.get("fb_pps_o", 0.0)
-                        )
-                        >= 0.15,
+                        f"{fb_pps_t_s:.2f}",
+                        f"{fb_pps_o_s:.2f}",
+                        fb_pps_t_s,
+                        fb_pps_o_s,
+                        abs(fb_pps_t_s - fb_pps_o_s) >= 0.15,
                         False,
                     ),
                     (
                         "PPS en Atac Estàtic (5c5)",
-                        f"{pbp_stats_s.get('hc_pps_t', 0.0):.2f}",
-                        f"{pbp_stats_s.get('hc_pps_o', 0.0):.2f}",
-                        pbp_stats_s.get("hc_pps_t", 0.0),
-                        pbp_stats_s.get("hc_pps_o", 0.0),
-                        abs(
-                            pbp_stats_s.get("hc_pps_t", 0.0)
-                            - pbp_stats_s.get("hc_pps_o", 0.0)
-                        )
-                        >= 0.15,
+                        f"{hc_pps_t_s:.2f}",
+                        f"{hc_pps_o_s:.2f}",
+                        hc_pps_t_s,
+                        hc_pps_o_s,
+                        abs(hc_pps_t_s - hc_pps_o_s) >= 0.15,
                         False,
                     ),
                     (
                         "Punts de Pèrdua Viva (PTS OFF TO)",
-                        f"{(pbp_stats_s.get('pts_off_to_t', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('pts_off_to_t', 0))})",
-                        f"{(pbp_stats_s.get('pts_off_to_o', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('pts_off_to_o', 0))})",
-                        pbp_stats_s.get("pts_off_to_t", 0.0) / n_p,
-                        pbp_stats_s.get("pts_off_to_o", 0.0) / n_p,
-                        abs(
-                            pbp_stats_s.get("pts_off_to_t", 0.0)
-                            - pbp_stats_s.get("pts_off_to_o", 0.0)
-                        )
-                        / n_p
-                        >= 2.0,
+                        f"{(pto_t_tot / n_p):.1f} ({int(round(pto_t_tot))})",
+                        f"{(pto_o_tot / n_p):.1f} ({int(round(pto_o_tot))})",
+                        pto_t_tot / n_p,
+                        pto_o_tot / n_p,
+                        abs(pto_t_tot - pto_o_tot) / n_p >= 2.0,
                         False,
                     ),
                     (
                         "Pèrdues Vives (LTO)",
-                        f"{(pbp_stats_s.get('lto_t', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('lto_t', 0))})",
-                        f"{(pbp_stats_s.get('lto_o', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('lto_o', 0))})",
-                        pbp_stats_s.get("lto_t", 0.0) / n_p,
-                        pbp_stats_s.get("lto_o", 0.0) / n_p,
-                        abs(
-                            pbp_stats_s.get("lto_t", 0.0) - pbp_stats_s.get("lto_o", 0.0)
-                        )
-                        / n_p
-                        >= 1.5,
+                        f"{(lto_t_tot / n_p):.1f} ({int(round(lto_t_tot))})",
+                        f"{(lto_o_tot / n_p):.1f} ({int(round(lto_o_tot))})",
+                        lto_t_tot / n_p,
+                        lto_o_tot / n_p,
+                        abs(lto_t_tot - lto_o_tot) / n_p >= 1.5,
                         True,
                     ),
                     (
                         "Pèrdues Mortes (DTO)",
-                        f"{(pbp_stats_s.get('dto_t', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('dto_t', 0))})",
-                        f"{(pbp_stats_s.get('dto_o', 0.0) / n_p):.1f} ({int(pbp_stats_s.get('dto_o', 0))})",
-                        pbp_stats_s.get("dto_t", 0.0) / n_p,
-                        pbp_stats_s.get("dto_o", 0.0) / n_p,
-                        abs(
-                            pbp_stats_s.get("dto_t", 0.0) - pbp_stats_s.get("dto_o", 0.0)
-                        )
-                        / n_p
-                        >= 1.5,
+                        f"{(dto_t_tot / n_p):.1f} ({int(round(dto_t_tot))})",
+                        f"{(dto_o_tot / n_p):.1f} ({int(round(dto_o_tot))})",
+                        dto_t_tot / n_p,
+                        dto_o_tot / n_p,
+                        abs(dto_t_tot - dto_o_tot) / n_p >= 1.5,
                         True,
                     ),
                     (
