@@ -1636,30 +1636,36 @@ if view_mode == "Partit Individual":
                     else 0.0
                 )
 
-                # Funció auxiliar per cercar a adv_dict de forma flexible
-                def get_m_val(adv_d, terms, default_val=0.0):
+                def get_m_val(adv_d, terms, default_val=0.0, exclude=None):
                     for k, v in adv_d.items():
-                        k_low = k.lower()
+                        k_low = str(k).lower()
+                        if exclude and exclude in k_low:
+                            continue
                         if any(t.lower() in k_low for t in terms):
-                            try:
-                                return float(v)
-                            except Exception:
-                                pass
+                            val_str = str(v).replace(",", ".").strip()
+                            m_num = re.search(r"[-+]?\d*\.?\d+", val_str)
+                            if m_num:
+                                try:
+                                    val = float(m_num.group())
+                                    if not np.isnan(val):
+                                        return val
+                                except Exception:
+                                    pass
                     return default_val
 
                 # 2. Extracció creuada de les mètriques complementàries
                 fb_pps_t = get_m_val(
-                    adv_dict_team, ["fastbreak pps", "transició pps"], 0.0
+                    adv_dict_team, ["fastbreak", "fast break", "fast-break", "transició", "transicio", "transition", "contraatac"], 0.0, exclude="total"
                 )
                 fb_pps_o = get_m_val(
-                    adv_dict_opp, ["fastbreak pps", "transició pps"], 0.0
+                    adv_dict_opp, ["fastbreak", "fast break", "fast-break", "transició", "transicio", "transition", "contraatac"], 0.0, exclude="total"
                 )
 
                 half_pps_t = get_m_val(
-                    adv_dict_team, ["half-court pps", "estàtic", "estatic"], 0.0
+                    adv_dict_team, ["half-court", "half court", "halfcourt", "estàtic", "estatic", "5c5", "5v5"], 0.0, exclude="total"
                 )
                 half_pps_o = get_m_val(
-                    adv_dict_opp, ["half-court pps", "estàtic", "estatic"], 0.0
+                    adv_dict_opp, ["half-court", "half court", "halfcourt", "estàtic", "estatic", "5c5", "5v5"], 0.0, exclude="total"
                 )
 
                 paint_touches_t = get_m_val(
@@ -2779,12 +2785,15 @@ else:
                         if exclude and exclude in kl:
                             continue
                         if any(p in kl for p in pats):
-                            try:
-                                val = float(v)
-                                if not np.isnan(val):
-                                    return val
-                            except Exception:
-                                pass
+                            val_str = str(v).replace(",", ".").strip()
+                            m_num = re.search(r"[-+]?\d*\.?\d+", val_str)
+                            if m_num:
+                                try:
+                                    val = float(m_num.group())
+                                    if not np.isnan(val):
+                                        return val
+                                except Exception:
+                                    pass
                     return 0.0
 
                 for gid in valid_ids:
@@ -2800,10 +2809,10 @@ else:
                     dto_t_tot += pbp_g.get("dto_t", 0.0) or _g_adv(adv_t_g, ["dead turnovers", "dto"], exclude="off")
                     dto_o_tot += pbp_g.get("dto_o", 0.0) or _g_adv(adv_o_g, ["dead turnovers", "dto"], exclude="off")
 
-                    v_fb_t = _g_adv(adv_t_g, ["fastbreak pps", "transició pps", "transicio pps"])
-                    v_fb_o = _g_adv(adv_o_g, ["fastbreak pps", "transició pps", "transicio pps"])
-                    v_hc_t = _g_adv(adv_t_g, ["half-court pps", "estàtic", "estatic"])
-                    v_hc_o = _g_adv(adv_o_g, ["half-court pps", "estàtic", "estatic"])
+                    v_fb_t = _g_adv(adv_t_g, ["fastbreak", "fast break", "fast-break", "transició", "transicio", "transition", "contraatac"], exclude="total")
+                    v_fb_o = _g_adv(adv_o_g, ["fastbreak", "fast break", "fast-break", "transició", "transicio", "transition", "contraatac"], exclude="total")
+                    v_hc_t = _g_adv(adv_t_g, ["half-court", "half court", "halfcourt", "estàtic", "estatic", "5c5", "5v5"], exclude="total")
+                    v_hc_o = _g_adv(adv_o_g, ["half-court", "half court", "halfcourt", "estàtic", "estatic", "5c5", "5v5"], exclude="total")
                     if v_fb_t > 0: fb_pps_t_list.append(v_fb_t)
                     if v_fb_o > 0: fb_pps_o_list.append(v_fb_o)
                     if v_hc_t > 0: hc_pps_t_list.append(v_hc_t)
