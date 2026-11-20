@@ -82,7 +82,7 @@ def safe_read_csv(file_path: Path, keyword: str) -> pd.DataFrame:
 
 
 def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
-    """Genera les metadades incloent data, mes i pista per als filtres."""
+    """Genera les metadades incloent data, mes, jornada i pista per als filtres."""
     folder_name = folder_path.name
 
     if folder_path.parent.resolve() != RAW_DATA_DIR.resolve():
@@ -94,6 +94,7 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
     our_team = "CB Argentona"
     opponent = ""
     round_str = ""
+    pista = ""
 
     # 1. Llegir metadata.json si existeix
     meta_json_file = folder_path / "metadata.json"
@@ -105,7 +106,8 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
                 date_str = j_data.get("date", date_str)
                 our_team = j_data.get("our_team", our_team)
                 opponent = j_data.get("opponent", opponent)
-                round_str = j_data.get("round", round_str)
+                round_str = j_data.get("round", j_data.get("jornada", round_str))
+                pista = j_data.get("pista", pista)  # 👈 ARA SÍ QUE LLEGEIX LA PISTA!
         except Exception as e:
             print(f"Avís llegint metadata.json a {folder_name}: {e}")
 
@@ -139,11 +141,17 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
         else:
             date_str = parts[0]
 
-    # Determinació de Pista (Casa / Fora)
-    pista = "Casa"
-    fn_low = folder_name.lower()
-    if "fora" in fn_low or "away" in fn_low:
-        pista = "Fora"
+    # Determinació de Pista (prioritzant el que posa a metadata.json!)
+    if pista:
+        pista = str(pista).strip().capitalize()
+        if pista not in ["Casa", "Fora"]:
+            pista_low = pista.lower()
+            pista = "Fora" if ("fora" in pista_low or "away" in pista_low or "visit" in pista_low) else "Casa"
+    else:
+        pista = "Casa"
+        fn_low = folder_name.lower()
+        if "fora" in fn_low or "away" in fn_low:
+            pista = "Fora"
 
     # Determinació del Mes
     month_str = "Altres"
@@ -156,8 +164,9 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
         parts_clean = [p for p in parts if p.lower() not in ["cb", "argentona", "j1", "j2", "j3", "j4", "j5", "j6", "j7", "j8", "j9", "j10"]]
         opponent = " ".join(parts_clean[3:]) if len(parts_clean) > 3 else "Rival"
 
+    # Detecció segura de la Jornada (J1, J2... tant amb guions baixos com guions normals)
     if not round_str:
-        match_j = re.search(r"[_\b]J(\d+)[_\b]", folder_name.upper()) or re.search(r"\bJ(\d+)\b", folder_name.upper())
+        match_j = re.search(r"(?:^|[^A-Z0-9])J(\d+)(?:[^A-Z0-9]|$)", folder_name.upper())
         if match_j:
             round_str = f"Jornada {int(match_j.group(1))}"
 
@@ -181,7 +190,6 @@ def parse_metadata(folder_path: Path, score_team=None, score_opp=None) -> dict:
         "round": round_str,
         "name": readable_name,
     }
-
 
 def parse_advanced_metrics(file_path: Path, game_id: str) -> pd.DataFrame:
     df = safe_read_csv(file_path, "metric")
