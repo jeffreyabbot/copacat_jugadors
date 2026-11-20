@@ -188,19 +188,20 @@ st.markdown(
     /* 3. DELTES EN VERMELL (BO) I BLAU (DOLENT)                 */
     /* --------------------------------------------------------- */
     /* A la targeta 4 (Defensa / DER), baixar és BO (Vermell) i pujar és DOLENT (Blau) */
-    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {
+    /* Només a la fila de 5 targetes (On/Off), la targeta 4 (DER) inverteix colors: baixar és BO (Vermell) i pujar DOLENT (Blau) */
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {
         color: #d00000 !important;
         background-color: rgba(208, 0, 0, 0.12) !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg {
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg {
         fill: #d00000 !important;
     }
 
-    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
         color: #0077b6 !important;
         background-color: rgba(0, 119, 182, 0.12) !important;
     }
-    div[data-testid="stHorizontalBlock"]:has(.stMetric) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg {
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg {
         fill: #0077b6 !important;
     }
     div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
