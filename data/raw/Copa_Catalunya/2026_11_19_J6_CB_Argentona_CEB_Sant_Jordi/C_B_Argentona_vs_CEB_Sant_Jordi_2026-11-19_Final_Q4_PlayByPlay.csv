@@ -1,5 +1,5 @@
 Data: 2026-11-18,Nostre Equip: CB Argentona,Rival: CEB Sant Jordi
-Periode,Rellotge,Hora,Posicio,Jugador,Possessio,Accio,Zona,Resultat,Durada(s),Paint Touch,Contracop,Final Ajustat
+Period,Game Clock,Timestamp,Slot,Player,Possession State,Action,Zone,Result,Duration(s),Paint Touch,Fastbreak,Crunch Time
 "Q1","09:56","21:16:22","Team","Team","defense","Opponent ATB3 Shot","ATB3","Make",0,"No","No","No"
 "Q1","09:42","21:16:45","1","#15","offense","RIM Shot","RIM","Miss",19.6,"Yes","No","No"
 "Q1","09:42","21:16:45","Team","Team","offense","Opponent Block","None","Success",19.6,"No","No","No"
