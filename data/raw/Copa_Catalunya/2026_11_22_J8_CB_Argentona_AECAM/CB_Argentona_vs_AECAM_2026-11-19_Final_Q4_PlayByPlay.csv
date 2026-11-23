@@ -1,5 +1,5 @@
 Data: 2026-11-19,Nostre Equip: CB Argentona,Rival: AECAM
-Periode,Rellotge,Hora,Posicio,Jugador,Possessio,Accio,Zona,Resultat,Durada(s),Paint Touch,Contracop,Final Ajustat
+Period,Game Clock,Timestamp,Slot,Player,Possession State,Action,Zone,Result,Duration(s),Paint Touch,Fastbreak,Crunch Time
 "Q1","09:40","18:01:38","2","#23","offense","C3 Shot","C3","Miss",23.7,"No","No","No"
 "Q1","09:40","18:01:38","5","#13","offense","Off Rebound","None","Success",23.7,"No","No","No"
 "Q1","09:30","18:01:44","5","#13","offense","Turnover (Dead)","None","Loss",15.6,"No","No","No"
