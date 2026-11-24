@@ -899,26 +899,45 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
             if unicodedata.category(c) != "Mn"
         ).lower().strip()
 
-    # 1. Mapa de Punts Assistits (des de df_creadors)
+    def _clean_dorsal(val):
+        digits = re.sub(r"[^\d]", "", str(val))
+        return str(int(digits)) if digits else ""
+
+    # 1. Mapa de Punts Assistits (detecta tant "Nom (#32)" com "#32 Nom")
     ast_pts_by_num = {}
     ast_pts_by_name = {}
     if df_creadors is not None and not df_creadors.empty:
-        name_col = next((c for c in ["Passador", "Jugador", "Name", "Player"] if c in df_creadors.columns), None)
-        pts_col = next((c for c in ["Punts_Generats_Totals", "PTS Generats", "Punts_Generats"] if c in df_creadors.columns), None)
+        name_col = next(
+            (c for c in ["Passador", "Jugador", "Creador", "Name", "Player"] if c in df_creadors.columns),
+            df_creadors.columns[0],
+        )
+        pts_col = next(
+            (c for c in ["Punts_Generats_Totals", "PTS Generats", "Punts_Generats"] if c in df_creadors.columns),
+            None,
+        )
         if pts_col:
             for _, r in df_creadors.iterrows():
                 val_pts = float(pd.to_numeric(r[pts_col], errors="coerce") or 0.0)
-                if "#" in df_creadors.columns:
-                    k_num = str(r["#"]).replace("#", "").strip()
-                    ast_pts_by_num[k_num] = ast_pts_by_num.get(k_num, 0.0) + val_pts
+                k_num = _clean_dorsal(r["#"]) if "#" in df_creadors.columns else ""
+                clean_n = ""
                 if name_col:
                     raw_n = str(r[name_col]).strip()
-                    m_d = re.match(r"^#?(\d+)\s+(.+)$", raw_n)
-                    if m_d:
-                        ast_pts_by_num[m_d.group(1)] = ast_pts_by_num.get(m_d.group(1), 0.0) + val_pts
-                        clean_n = _norm_txt(m_d.group(2))
+                    m_end = re.search(r"\(\s*#?(\d+)\s*\)$", raw_n)
+                    m_start = re.match(r"^#?(\d+)\s+(.+)$", raw_n)
+                    if m_end:
+                        if not k_num:
+                            k_num = _clean_dorsal(m_end.group(1))
+                        clean_n = _norm_txt(raw_n[:m_end.start()])
+                    elif m_start:
+                        if not k_num:
+                            k_num = _clean_dorsal(m_start.group(1))
+                        clean_n = _norm_txt(m_start.group(2))
                     else:
                         clean_n = _norm_txt(raw_n)
+
+                if k_num:
+                    ast_pts_by_num[k_num] = ast_pts_by_num.get(k_num, 0.0) + val_pts
+                if clean_n:
                     ast_pts_by_name[clean_n] = ast_pts_by_name.get(clean_n, 0.0) + val_pts
 
     # 2. Mapa d'USG% (des de df_4f)
@@ -952,7 +971,7 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
         if mins <= 0:
             continue
 
-        pts_ast_tot = ast_pts_by_num.get(p_num, ast_pts_by_name.get(_norm_txt(p_name), 0.0))
+        pts_ast_tot = ast_pts_by_num.get(_clean_dorsal(p_num), ast_pts_by_name.get(_norm_txt(p_name), 0.0))
         pts_ast = (pts_ast_tot / pj) if (is_season and is_per_game) else pts_ast_tot
         usg = usg_by_num.get(p_num, usg_by_name.get(_norm_txt(p_name), 0.0))
 
