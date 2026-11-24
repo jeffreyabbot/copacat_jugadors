@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import base64
+import altair as alt
 from src.data_loader import CACHE_DIR, rebuild_cache
 from src.utils import (
     compute_pbp_advanced_stats,
@@ -886,6 +887,156 @@ def get_nman_combos_summary(l_df, b_df_or_players, n=2, target_p_num=None, targe
     if not df_out.empty:
         df_out = df_out.sort_values(by="Net Rating", ascending=False).reset_index(drop=True)
     return df_out
+
+def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=False, is_per_game=False):
+    """Dibuixa el gràfic de bombolles: (Punts + Assistits) vs Minuts, tamany = USG%."""
+    if box_or_agg is None or box_or_agg.empty:
+        return
+
+    def _norm_txt(t):
+        return "".join(
+            c for c in unicodedata.normalize("NFD", str(t))
+            if unicodedata.category(c) != "Mn"
+        ).lower().strip()
+
+    # 1. Mapa de Punts Assistits (des de df_creadors)
+    ast_pts_by_num = {}
+    ast_pts_by_name = {}
+    if df_creadors is not None and not df_creadors.empty:
+        name_col = next((c for c in ["Passador", "Jugador", "Name", "Player"] if c in df_creadors.columns), None)
+        pts_col = next((c for c in ["Punts_Generats_Totals", "PTS Generats", "Punts_Generats"] if c in df_creadors.columns), None)
+        if pts_col:
+            for _, r in df_creadors.iterrows():
+                val_pts = float(pd.to_numeric(r[pts_col], errors="coerce") or 0.0)
+                if "#" in df_creadors.columns:
+                    k_num = str(r["#"]).replace("#", "").strip()
+                    ast_pts_by_num[k_num] = ast_pts_by_num.get(k_num, 0.0) + val_pts
+                if name_col:
+                    raw_n = str(r[name_col]).strip()
+                    m_d = re.match(r"^#?(\d+)\s+(.+)$", raw_n)
+                    if m_d:
+                        ast_pts_by_num[m_d.group(1)] = ast_pts_by_num.get(m_d.group(1), 0.0) + val_pts
+                        clean_n = _norm_txt(m_d.group(2))
+                    else:
+                        clean_n = _norm_txt(raw_n)
+                    ast_pts_by_name[clean_n] = ast_pts_by_name.get(clean_n, 0.0) + val_pts
+
+    # 2. Mapa d'USG% (des de df_4f)
+    usg_by_num = {}
+    usg_by_name = {}
+    if df_4f is not None and not df_4f.empty and "USG%" in df_4f.columns:
+        for _, r in df_4f.iterrows():
+            val_usg = float(pd.to_numeric(str(r["USG%"]).replace("%", "").strip(), errors="coerce") or 0.0)
+            if "#" in df_4f.columns:
+                usg_by_num[str(r["#"]).replace("#", "").strip()] = val_usg
+            if "Jugador" in df_4f.columns:
+                usg_by_name[_norm_txt(r["Jugador"])] = val_usg
+
+    # 3. Construir taula unificada per al gràfic
+    chart_rows = []
+    for _, r in box_or_agg.iterrows():
+        p_num = str(r["Player"]).replace("#", "").strip()
+        p_name = str(r["Name"]).strip()
+
+        if is_season:
+            pj = max(float(r.get("PJ", 1.0)), 1.0)
+            raw_pts = float(pd.to_numeric(r.get("PTS", 0.0), errors="coerce") or 0.0)
+            raw_min = float(pd.to_numeric(r.get("MIN_TOT", 0.0), errors="coerce") or 0.0)
+            pts = (raw_pts / pj) if is_per_game else raw_pts
+            mins = (raw_min / pj) if is_per_game else raw_min
+        else:
+            pj = 1.0
+            pts = float(pd.to_numeric(r.get("Points", 0.0), errors="coerce") or 0.0)
+            mins = parse_min_to_float(r.get("MIN", 0.0))
+
+        if mins <= 0:
+            continue
+
+        pts_ast_tot = ast_pts_by_num.get(p_num, ast_pts_by_name.get(_norm_txt(p_name), 0.0))
+        pts_ast = (pts_ast_tot / pj) if (is_season and is_per_game) else pts_ast_tot
+        usg = usg_by_num.get(p_num, usg_by_name.get(_norm_txt(p_name), 0.0))
+
+        # Etiqueta curta per al gràfic (ex: "#9 Martori")
+        parts_n = p_name.split()
+        short_n = f"#{p_num} {parts_n[-1]}" if len(parts_n) >= 2 else f"#{p_num} {p_name}"
+
+        chart_rows.append({
+            "Etiqueta": short_n,
+            "Jugador": f"#{p_num} {p_name}",
+            "Punts Produïts": round(pts + pts_ast, 1),
+            "Punts Anotats": round(pts, 1),
+            "Punts Assistits": round(pts_ast, 1),
+            "Minuts": round(mins, 1),
+            "USG%": round(usg, 1),
+            "_size_val": max(usg, 2.0),
+        })
+
+    df_chart = pd.DataFrame(chart_rows)
+    if df_chart.empty:
+        return
+
+    suffix = " / Partit" if (is_season and is_per_game) else (" (Temporada)" if is_season else "")
+    x_title = f"Punts Produïts: Anotats + Assistits{suffix}"
+    y_title = f"Minuts Jugats{suffix}"
+
+    st.markdown(f"##### 🎯 Producció Ofensiva Total vs Minuts i USG%{suffix}")
+    st.caption("Mida de la bombolla = **% d'Ús (USG%)** · Línies discontínues = mitjana dels jugadors mostrats")
+
+    avg_x = float(df_chart["Punts Produïts"].mean())
+    avg_y = float(df_chart["Minuts"].mean())
+
+    base = alt.Chart(df_chart)
+
+    # Línies de referència (mitjana X i Y)
+    rule_x = alt.Chart(pd.DataFrame({"x": [avg_x]})).mark_rule(
+        strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
+    ).encode(x="x:Q")
+
+    rule_y = alt.Chart(pd.DataFrame({"y": [avg_y]})).mark_rule(
+        strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
+    ).encode(y="y:Q")
+
+    # Bombolles
+    points = base.mark_circle(
+        color="#d00000",
+        opacity=0.68,
+        stroke="#800000",
+        strokeWidth=1.5,
+    ).encode(
+        x=alt.X("Punts Produïts:Q", title=x_title, scale=alt.Scale(zero=True, padding=15)),
+        y=alt.Y("Minuts:Q", title=y_title, scale=alt.Scale(zero=True, padding=15)),
+        size=alt.Size(
+            "USG%:Q",
+            title="USG (%)",
+            scale=alt.Scale(range=[80, 1200], domain=[0, max(float(df_chart["USG%"].max()), 35.0)]),
+            legend=alt.Legend(orient="right"),
+        ),
+        tooltip=[
+            alt.Tooltip("Jugador:N", title="Jugador"),
+            alt.Tooltip("Punts Produïts:Q", title="Punts Produïts (Total)", format=".1f"),
+            alt.Tooltip("Punts Anotats:Q", title="• Anotats", format=".1f"),
+            alt.Tooltip("Punts Assistits:Q", title="• Assistits", format=".1f"),
+            alt.Tooltip("Minuts:Q", title="Minuts", format=".1f"),
+            alt.Tooltip("USG%:Q", title="USG (%)", format=".1f"),
+        ],
+    )
+
+    # Noms al costat de cada bombolla
+    text = base.mark_text(
+        align="center",
+        baseline="bottom",
+        dy=-12,
+        fontSize=11,
+        fontWeight="bold",
+        color="#212529",
+    ).encode(
+        x="Punts Produïts:Q",
+        y="Minuts:Q",
+        text="Etiqueta:N",
+    )
+
+    chart = (rule_x + rule_y + points + text).properties(height=460).interactive()
+    st.altair_chart(chart, use_container_width=True)
 
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
@@ -2208,67 +2359,36 @@ if view_mode == "Partit Individual":
                 render_boxscore(df_sorted, "Context")
 
             elif box_mode == "Xarxa d'Assistències":
-                df_rank, df_creadors, _ = get_assist_combos(
-                    pbp_df, box_df, selected_game_id
-                )
+                df_rank, df_creadors, _ = get_assist_combos(pbp_df, box_df, selected_game_id)
+                df_4f_chart = get_individual_four_factors(box_df, lineups_df, pbp_df, selected_game_id)
 
                 if not df_rank.empty:
                     tot_ast = int(df_creadors["Assistències_Totals"].sum())
-                    tot_pts_gen = int(
-                        df_creadors["Punts_Generats_Totals"].sum()
-                    )
+                    tot_pts_gen = int(df_creadors["Punts_Generats_Totals"].sum())
                     tot_t3 = int(df_creadors["T3_Generats"].sum())
 
                     m_a1, m_a2, m_a3 = st.columns(3)
                     m_a1.metric("Assistències Totals", f"{tot_ast}")
-                    m_a2.metric(
-                        "Punts Generats per Assistència",
-                        f"{tot_pts_gen} pts",
-                        delta=f"{(tot_pts_gen/tot_ast):.2f} pts/ast"
-                        if tot_ast > 0
-                        else None,
-                    )
-                    m_a3.metric(
-                        "Triples Assistits",
-                        f"{tot_t3}",
-                        delta=f"{tot_t3*3} pts via T3",
-                    )
-
+                    m_a2.metric("Punts Generats per Assistència", f"{tot_pts_gen} pts", delta=f"{(tot_pts_gen/tot_ast):.2f} pts/ast" if tot_ast > 0 else None)
+                    m_a3.metric("Triples Assistits", f"{tot_t3}", delta=f"{tot_t3*3} pts via T3")
                     st.markdown("---")
 
-                    # 1. Taula de Creadors (CRIDANT A render_boxscore)
-                    st.markdown(
-                        "##### 🗲 Punts Totals Generats per Creador"
-                    )
-                    df_c_disp = df_creadors.rename(
-                        columns={
-                            "Assistències_Totals": "AST",
-                            "Punts_Generats_Totals": "PTS Generats",
-                            "T2_Generats": "T2 Assistits",
-                            "T3_Generats": "T3 Assistits",
-                        }
-                    )
+                # NOU GRÀFIC DE BOMBOLLES
+                render_offensive_impact_chart(g_box, df_creadors, df_4f_chart, is_season=False, is_per_game=False)
+
+                if not df_rank.empty:
+                    st.markdown("---")
+                    st.markdown("##### 🗲 Punts Totals Generats per Creador")
+                    df_c_disp = df_creadors.rename(columns={"Assistències_Totals": "AST", "Punts_Generats_Totals": "PTS Generats", "T2_Generats": "T2 Assistits", "T3_Generats": "T3 Assistits"})
                     render_boxscore(df_c_disp, "Assistències")
 
                     st.markdown("<br>", unsafe_allow_html=True)
-
-                    # 2. Taula de Duos (CRIDANT A render_boxscore)
-                    st.markdown(
-                        "##### 🤝 Connexions i Duos (Passador ➔ Anotador)"
-                    )
-                    df_r_disp = df_rank.rename(
-                        columns={
-                            "Assistències": "AST",
-                            "Punts_Generats": "PTS Generats",
-                            "T2": "T2 Assistits",
-                            "T3": "T3 Assistits",
-                        }
-                    )
+                    st.markdown("##### 🤝 Connexions i Duos (Passador ➔ Anotador)")
+                    df_r_disp = df_rank.rename(columns={"Assistències": "AST", "Punts_Generats": "PTS Generats", "T2": "T2 Assistits", "T3": "T3 Assistits"})
                     render_boxscore(df_r_disp, "Assistències")
                 else:
-                    st.info(
-                        "No hi ha assistències registrades en aquest partit."
-                    )
+                    st.info("No hi ha assistències registrades en aquest partit.")
+            
             elif box_mode == "Rebot i 2a Oportunitat":
                 df_reb = pd.DataFrame()
                 df_reb["#"] = g_box["Player"]
@@ -3286,69 +3406,35 @@ else:
                 render_boxscore(df_sorted, "Context", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "Xarxa d'Assistències":
-                df_rank_s, df_creadors_s, _ = get_assist_combos(
-                    comp_pbp, comp_box, game_id=None
-                )
+                df_rank_s, df_creadors_s, _ = get_assist_combos(comp_pbp, comp_box_filtered, game_id=None)
+                df_4f_chart_s = get_individual_four_factors(comp_box_filtered, comp_lineups, comp_pbp, game_id=None)
 
                 if not df_rank_s.empty:
                     tot_ast_s = int(df_creadors_s["Assistències_Totals"].sum())
-                    tot_pts_gen_s = int(
-                        df_creadors_s["Punts_Generats_Totals"].sum()
-                    )
+                    tot_pts_gen_s = int(df_creadors_s["Punts_Generats_Totals"].sum())
                     tot_t3_s = int(df_creadors_s["T3_Generats"].sum())
 
                     m_a1, m_a2, m_a3 = st.columns(3)
-                    m_a1.metric(
-                        "Assistències Totals (Temporada)", f"{tot_ast_s}"
-                    )
-                    m_a2.metric(
-                        "Punts Generats per Assistència",
-                        f"{tot_pts_gen_s} pts",
-                        delta=f"{(tot_pts_gen_s/tot_ast_s):.2f} pts/ast"
-                        if tot_ast_s > 0
-                        else None,
-                    )
-                    m_a3.metric(
-                        "Triples Assistits (Temporada)",
-                        f"{tot_t3_s}",
-                        delta=f"{tot_t3_s*3} pts via T3",
-                    )
-
+                    m_a1.metric("Assistències Totals (Temporada)", f"{tot_ast_s}")
+                    m_a2.metric("Punts Generats per Assistència", f"{tot_pts_gen_s} pts", delta=f"{(tot_pts_gen_s/tot_ast_s):.2f} pts/ast" if tot_ast_s > 0 else None)
+                    m_a3.metric("Triples Assistits (Temporada)", f"{tot_t3_s}", delta=f"{tot_t3_s*3} pts via T3")
                     st.markdown("---")
 
-                    st.markdown(
-                        "##### 👑 Punts Totals Generats per Creador (Temporada)"
-                    )
-                    df_c_disp_s = df_creadors_s.rename(
-                        columns={
-                            "Assistències_Totals": "AST",
-                            "Punts_Generats_Totals": "PTS Generats",
-                            "T2_Generats": "T2 Assistits",
-                            "T3_Generats": "T3 Assistits",
-                        }
-                    )
+                # NOU GRÀFIC DE BOMBOLLES (respecta el toggle Totals vs Mitjanes per Partit i el filtre de minuts!)
+                render_offensive_impact_chart(p_agg, df_creadors_s, df_4f_chart_s, is_season=True, is_per_game=is_pg)
+
+                if not df_rank_s.empty:
+                    st.markdown("---")
+                    st.markdown("##### 👑 Punts Totals Generats per Creador (Temporada)")
+                    df_c_disp_s = df_creadors_s.rename(columns={"Assistències_Totals": "AST", "Punts_Generats_Totals": "PTS Generats", "T2_Generats": "T2 Assistits", "T3_Generats": "T3 Assistits"})
                     render_boxscore(df_c_disp_s, "Assistències", is_totals_view=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
-
-                    st.markdown(
-                        "##### 🤝 Connexions i Duos (Passador ➔ Anotador -"
-                        " Temporada)"
-                    )
-                    df_r_disp_s = df_rank_s.rename(
-                        columns={
-                            "Assistències": "AST",
-                            "Punts_Generats": "PTS Generats",
-                            "T2": "T2 Assistits",
-                            "T3": "T3 Assistits",
-                        }
-                    )
+                    st.markdown("##### 🤝 Connexions i Duos (Passador ➔ Anotador - Temporada)")
+                    df_r_disp_s = df_rank_s.rename(columns={"Assistències": "AST", "Punts_Generats": "PTS Generats", "T2": "T2 Assistits", "T3": "T3 Assistits"})
                     render_boxscore(df_r_disp_s, "Assistències", is_totals_view=True)
                 else:
-                    st.info(
-                        "No hi ha assistències registrades en els partits"
-                        " seleccionats."
-                    )
+                    st.info("No hi ha assistències registrades en els partits seleccionats.")
             elif box_mode_s == "Rebot i 2a Oportunitat":
                 df_reb_s = pd.DataFrame()
                 df_reb_s["#"] = p_agg["Player"]
