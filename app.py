@@ -1299,7 +1299,7 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
         if k_name:
             reb_by_name[k_name] = info
 
-    # 2. Construir dades exactes per minut des de box_or_agg (sense arrodoniments previs)
+    # 2. Construir dades exactes per minut des de box_or_agg
     chart_rows = []
     for _, r in box_or_agg.iterrows():
         p_num = str(r["Player"]).replace("#", "").strip()
@@ -1337,14 +1337,15 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
         parts_n = p_name.split()
         short_n = f"#{p_num} {parts_n[-1]}" if len(parts_n) >= 2 else f"#{p_num} {p_name}"
 
+        # IMPORTANT: Cap punt (.) als noms de columnes d'Altair/Vega-Lite!
         chart_rows.append({
             "Etiqueta": short_n,
             "Jugador": f"#{p_num} {p_name}",
             "RO/Min": round(ro_min, 3),
             "RD/Min": round(rd_min, 3),
             "REB/Min": round(reb_min, 2),
-            "Pts 2a Op.": round(pts_2a, 1),
-            "2a Op. (A/I)": op2_ai,
+            "Pts 2a Op": round(pts_2a, 1),
+            "2a Op (A/I)": op2_ai,
             "REB_O": round(ro_disp, 1),
             "REB_D": round(rd_disp, 1),
             "OREB%": round(oreb_pct, 1),
@@ -1362,28 +1363,32 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
 
     max_x = max(float(df_chart["RO/Min"].max()) * 1.15, 0.05)
     max_y = max(float(df_chart["RD/Min"].max()) * 1.18, 0.05)
-    max_pts2a = max(float(df_chart["Pts 2a Op."].max()), 2.0)
+    max_pts2a = max(float(df_chart["Pts 2a Op"].max()), 2.0)
 
-    # Evitar superposició d'etiquetes
+    # Evitar superposició d'etiquetes i que trepitgin l'eix Y a l'esquerra
     df_chart = df_chart.sort_values("RO/Min").reset_index(drop=True)
     placed_labels = []
+    x_texts = []
     y_texts = []
     for _, row in df_chart.iterrows():
         cx, cy = row["RO/Min"], row["RD/Min"]
+        tx = max(cx, max_x * 0.05)  # Evita que els de 0.00 surtin fora per l'esquerra
         chosen_yt = cy + max_y * 0.045
         for off in [0.045, -0.055, 0.085, -0.095]:
             cand_yt = cy + max_y * off
             if cand_yt < max_y * 0.02:
                 continue
             conflict = any(
-                abs(cx - lx) < max_x * 0.09 and abs(cand_yt - ly) < max_y * 0.06
+                abs(tx - lx) < max_x * 0.09 and abs(cand_yt - ly) < max_y * 0.06
                 for lx, ly in placed_labels
             )
             if not conflict:
                 chosen_yt = cand_yt
                 break
+        x_texts.append(tx)
         y_texts.append(chosen_yt)
-        placed_labels.append((cx, chosen_yt))
+        placed_labels.append((tx, chosen_yt))
+    df_chart["x_text"] = x_texts
     df_chart["y_text"] = y_texts
 
     avg_x = float(df_chart["RO/Min"].mean())
@@ -1405,10 +1410,10 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
         stroke="#800000",
         strokeWidth=1.5,
     ).encode(
-        x=alt.X("RO/Min:Q", title="Rebots Ofensius per Minut (RO/Min)", scale=alt.Scale(domain=[0, max_x], nice=True), axis=alt.Axis(format=".2f")),
-        y=alt.Y("RD/Min:Q", title="Rebots Defensius per Minut (RD/Min)", scale=alt.Scale(domain=[0, max_y], nice=True), axis=alt.Axis(format=".2f")),
+        x=alt.X("RO/Min:Q", title="Rebots Ofensius per Minut (RO/Min)", scale=alt.Scale(domain=[0, max_x], nice=True), axis=alt.Axis(format=".2f", tickMinStep=0.01)),
+        y=alt.Y("RD/Min:Q", title="Rebots Defensius per Minut (RD/Min)", scale=alt.Scale(domain=[0, max_y], nice=True), axis=alt.Axis(format=".2f", tickMinStep=0.01)),
         size=alt.Size(
-            "Pts 2a Op.:Q",
+            "Pts 2a Op:Q",
             title=f"Pts 2a Op.{suffix}",
             scale=alt.Scale(range=[80, 1100], domain=[0, max_pts2a]),
             legend=alt.Legend(orient="right"),
@@ -1418,8 +1423,8 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
             alt.Tooltip("RO/Min:Q", title="RO / Minut", format=".2f"),
             alt.Tooltip("RD/Min:Q", title="RD / Minut", format=".2f"),
             alt.Tooltip("REB/Min:Q", title="Total REB / Minut", format=".2f"),
-            alt.Tooltip("Pts 2a Op.:Q", title="Punts 2a Oportunitat", format=".1f"),
-            alt.Tooltip("2a Op. (A/I):N", title="2a Op. (A/I)"),
+            alt.Tooltip("Pts 2a Op:Q", title="Punts 2a Oportunitat", format=".1f"),
+            alt.Tooltip("2a Op (A/I):N", title="2a Op. (A/I)"),
             alt.Tooltip("REB_O:Q", title="Rebots Ofensius", format=".1f"),
             alt.Tooltip("REB_D:Q", title="Rebots Defensius", format=".1f"),
             alt.Tooltip("OREB%:Q", title="OREB (%)", format=".1f"),
@@ -1434,7 +1439,7 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
         fontWeight="bold",
         color="#212529",
     ).encode(
-        x="RO/Min:Q",
+        x="x_text:Q",
         y="y_text:Q",
         text="Etiqueta:N",
     )
