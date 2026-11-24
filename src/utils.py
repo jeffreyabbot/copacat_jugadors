@@ -698,44 +698,59 @@ def clean_txt(t):
 
 
 def is_player_in_lineup(row, p_num, p_name):
-    """Detecta de forma unívoca si el jugador és al quintet evitant confusions amb posicions 1-5."""
+    """Detecta de forma unívoca si el jugador és al quintet sense barrejar germans ni posicions 1-5."""
     clean_p_name = clean_txt(p_name)
-    clean_p_num = re.sub(r"[^\d]", "", str(p_num)).lstrip("0")
-    
-    # Obtenim els tokens del nom (ex: "victor", "domingo")
-    tokens = [t for t in clean_p_name.split() if len(t) >= 3]
+    raw_digits = re.sub(r"[^\d]", "", str(p_num))
+    clean_p_num = str(int(raw_digits)) if raw_digits else ""
+
+    tokens = [t for t in clean_p_name.split() if len(t) >= 2]
+    first_name = tokens[0] if tokens else ""
+    first_init = first_name[0] if first_name else ""
+    surnames = tokens[1:] if len(tokens) > 1 else tokens
     last_name = tokens[-1] if tokens else ""
 
-    # Cel·les P1..P5 i el text complet del quintet
     p_cells = [str(row.get(f"P{i}", "")).strip() for i in range(1, 6)]
     lineup_text = str(row.get("Lineup", "")).strip()
-    
-    # Text combinat normalitzat (sense accents)
+
     combined_raw = " | ".join(p_cells + [lineup_text])
     combined_clean = clean_txt(combined_raw)
+    lineup_clean = clean_txt(lineup_text)
 
-    # 1. MÈTODE PRINCIPAL: COINCIDÈNCIA EXACTA DE COGNOM
-    # (El cognom "domingo", "blanco", "martori", "basterra", "tena" mai es confon amb una posició)
-    if last_name and len(last_name) >= 3:
-        if re.search(rf"\b{re.escape(last_name)}\b", combined_clean):
+    # 1. NOM COMPLET EXACTE (ex: "inaki jarque" vs "victor jarque")
+    if clean_p_name and len(tokens) >= 2:
+        if re.search(rf"\b{re.escape(clean_p_name)}\b", combined_clean):
             return True
 
-    # 2. NOM COMPLET
-    if clean_p_name and clean_p_name in combined_clean:
-        return True
+    # 2. PRIMER NOM + QUALSEVOL COGNOM (per si a boxscore hi ha 2 cognoms i al quintet només 1)
+    if first_name and len(tokens) >= 2:
+        for s in surnames:
+            if len(s) >= 3 and re.search(rf"\b{re.escape(first_name)}\s+{re.escape(s)}\b", combined_clean):
+                return True
 
-    # 3. DORSAL AMB COIXINET '#': obligatori per als dorsals de l'1 al 5 (#1, #2, #3, #4, #5)
-    # per evitar confondre'ls amb la posició de Base (1), Escolta (2), etc.
+    # 3. INICIAL + COGNOM (ex: "i. jarque" vs "v. jarque")
+    if first_init and surnames:
+        for s in surnames:
+            if len(s) >= 3 and re.search(rf"\b{re.escape(first_init)}[\.\s]+{re.escape(s)}\b", combined_clean):
+                return True
+
+    # 4. DORSAL EXPLÍCIT AL TEXT DEL QUINTET: "NOM (7)" o "#7"
+    # Una lletra seguida de "(7)" sempre és el dorsal real del jugador (segur fins i tot de l'1 al 5)
     if clean_p_num:
+        if re.search(rf"[a-z]\s*\(\s*0*{clean_p_num}\s*\)", lineup_clean):
+            return True
         if re.search(rf"#\s*0*{clean_p_num}\b", combined_raw):
             return True
+        if int(clean_p_num) > 5:
+            for cell in p_cells:
+                c_strip = cell.strip()
+                if c_strip.isdigit() and int(c_strip) == int(clean_p_num):
+                    return True
 
-    # 4. Si i només si el dorsal és > 5 (ex: #8, #9, #15, #32), pot emparellar com a número pur
-    if clean_p_num and int(clean_p_num) > 5:
-        for cell in p_cells:
-            c_strip = cell.strip()
-            if c_strip.isdigit() and int(c_strip) == int(clean_p_num):
-                return True
+    # 5. COGNOM SOL (només si el fitxer no tingués ni inicials ni dorsals entre parèntesis)
+    has_structured_names = bool(re.search(r"\b[a-z]\.\s*[a-z]{3,}", combined_clean)) or bool(re.search(r"\(\s*\d+\s*\)", lineup_clean))
+    if not has_structured_names and last_name and len(last_name) >= 3:
+        if re.search(rf"\b{re.escape(last_name)}\b", combined_clean):
+            return True
 
     return False
 

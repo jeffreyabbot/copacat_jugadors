@@ -245,21 +245,32 @@ def get_cached_data():
         CACHE_DIR / "all_boxscores.parquet",
         CACHE_DIR / "all_lineups.parquet",
         CACHE_DIR / "all_advanced.parquet",
-        CACHE_DIR / "all_pbp.parquet",  # 5è fitxer
+        CACHE_DIR / "all_pbp.parquet",
     ]
     if not all(f.exists() for f in required_files):
         return rebuild_cache()
 
     try:
         games = pd.read_parquet(CACHE_DIR / "games_index.parquet")
+
+        # Si hi ha carpetes de partits a data/raw/ que no coincideixen amb la cache, reconstrueix automàticament
+        raw_dir = CACHE_DIR.parent / "raw"
+        raw_folders = {
+            f.parent.name
+            for f in raw_dir.rglob("*")
+            if f.is_file() and f.suffix.lower() == ".csv"
+        }
+        cached_ids = set(games["game_id"].astype(str)) if not games.empty and "game_id" in games.columns else set()
+        if raw_folders and raw_folders != cached_ids:
+            return rebuild_cache()
+
         box = pd.read_parquet(CACHE_DIR / "all_boxscores.parquet")
         lineups = pd.read_parquet(CACHE_DIR / "all_lineups.parquet")
         adv = pd.read_parquet(CACHE_DIR / "all_advanced.parquet")
-        pbp = pd.read_parquet(CACHE_DIR / "all_pbp.parquet")  # Carregar pbp
-        return games, box, lineups, adv, pbp  # Retornar els 5
+        pbp = pd.read_parquet(CACHE_DIR / "all_pbp.parquet")
+        return games, box, lineups, adv, pbp
     except Exception:
         return rebuild_cache()
-
 
 # Desempaquetem exactament els 5 DataFrames:
 games_df, box_df, lineups_df, adv_df, pbp_df = get_cached_data()
