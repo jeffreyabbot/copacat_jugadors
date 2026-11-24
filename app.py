@@ -1659,6 +1659,200 @@ def render_four_factors_radar(df_4f, box_or_agg, key_prefix="single", is_season=
 
         st.dataframe(pd.DataFrame(comp_rows), use_container_width=True, hide_index=True)
 
+def render_shooting_zones_charts(box_or_agg, key_prefix="single", is_season=False, is_per_game=False):
+    """Dos gràfics paral·lels per jugador: Volum de tirs per zona i Eficiència (PPS + %)."""
+    if box_or_agg is None or box_or_agg.empty:
+        return
+
+    def _clean_dorsal(val):
+        digits = re.sub(r"[^\d]", "", str(val))
+        return str(int(digits)) if digits else ""
+
+    # Noms de columnes segons si ve de g_box (single) o p_agg (season)
+    if is_season:
+        zones_cfg = [
+            ("Aro (Rim)", "RIM_M", "RIM_A", 2),
+            ("Pintura (Paint)", "PAINT_M", "PAINT_A", 2),
+            ("Mitja Distància (MR)", "MR_M", "MR_A", 2),
+            ("Triple Cantonada (C3)", "C3_M", "C3_A", 3),
+            ("Triple Frontal (ATB3)", "ATB3_M", "ATB3_A", 3),
+        ]
+    else:
+        zones_cfg = [
+            ("Aro (Rim)", "RIM(M)", "RIM(A)", 2),
+            ("Pintura (Paint)", "PAINT(M)", "PAINT(A)", 2),
+            ("Mitja Distància (MR)", "MR(M)", "MR(A)", 2),
+            ("Triple Cantonada (C3)", "C3(M)", "C3(A)", 3),
+            ("Triple Frontal (ATB3)", "ATB3(M)", "ATB3(A)", 3),
+        ]
+
+    # 1. Recopilem dades de tots els jugadors actius per calcular també les mitjanes de l'equip
+    players_zones = {}
+    zone_team_m = {z[0]: 0.0 for z in zones_cfg}
+    zone_team_a = {z[0]: 0.0 for z in zones_cfg}
+    zone_avg_att_per_player = {z[0]: [] for z in zones_cfg}
+
+    for _, r in box_or_agg.iterrows():
+        p_num = str(r["Player"]).replace("#", "").strip()
+        p_name = str(r["Name"]).strip()
+        mins = float(pd.to_numeric(r.get("MIN_TOT", 0.0), errors="coerce") or 0.0) if is_season else parse_min_to_float(r.get("MIN", 0.0))
+        if mins <= 0:
+            continue
+
+        pj = max(float(r.get("PJ", 1.0)), 1.0) if is_season else 1.0
+        div = pj if (is_season and is_per_game) else 1.0
+        label = f"#{p_num} {p_name}"
+
+        p_dict = {}
+        for z_name, col_m, col_a, pts_val in zones_cfg:
+            m_raw = float(pd.to_numeric(r.get(col_m, 0.0), errors="coerce") or 0.0)
+            a_raw = float(pd.to_numeric(r.get(col_a, 0.0), errors="coerce") or 0.0)
+            zone_team_m[z_name] += m_raw
+            zone_team_a[z_name] += a_raw
+            zone_avg_att_per_player[z_name].append(a_raw / div)
+            p_dict[z_name] = {"m": m_raw / div, "a": a_raw / div, "m_tot": m_raw, "a_tot": a_raw, "pts_val": pts_val}
+
+        players_zones[label] = {"zones": p_dict, "mins": mins / div, "pj": pj}
+
+    if not players_zones:
+        return
+
+    # Mitjana global PPS de l'equip i per zona
+    tot_team_pts = sum(zone_team_m[z[0]] * z[3] for z in zones_cfg)
+    tot_team_att = sum(zone_team_a[z[0]] for z in zones_cfg)
+    team_avg_pps = (tot_team_pts / tot_team_att) if tot_team_att > 0 else 1.0
+
+    player_labels = sorted(players_zones.keys(), key=lambda x: int(_clean_dorsal(x.split()[0]) or 999))
+
+    st.markdown("##### 🎯 Perfil de Tir per Zones (Volum i Eficiència PPS)")
+    col_sel, _ = st.columns([1.4, 1.6])
+    with col_sel:
+        sel_p = st.selectbox("👤 Selecciona el Jugador per analitzar el seu mapa de tir:", options=player_labels, key=f"{key_prefix}_zones_player")
+
+    p_info = players_zones[sel_p]
+    p_tot_att = sum(v["a"] for v in p_info["zones"].values())
+    unit_lbl = "tirs/p" if (is_season and is_per_game) else "tirs"
+    suffix = " / Partit" if (is_season and is_per_game) else (" (Temporada)" if is_season else "")
+
+    rows_chart = []
+    for z_name, _, _, pts_val in zones_cfg:
+        zd = p_info["zones"][z_name]
+        a = zd["a"]
+        m = zd["m"]
+        a_tot = zd["a_tot"]
+        m_tot = zd["m_tot"]
+
+        pct = (m_tot / a_tot * 100.0) if a_tot > 0 else 0.0
+        pps = ((m_tot * pts_val) / a_tot) if a_tot > 0 else 0.0
+        pct_vol = (a / p_tot_att * 100.0) if p_tot_att > 0 else 0.0
+
+        team_z_att_avg = sum(zone_avg_att_per_player[z_name]) / len(zone_avg_att_per_player[z_name])
+        team_z_pps = ((zone_team_m[z_name] * pts_val) / zone_team_a[z_name]) if zone_team_a[z_name] > 0 else team_avg_pps
+
+        # Textos nets sobre les barres
+        if is_season and is_per_game:
+            txt_vol = f"{a:.1f} {unit_lbl} ({pct_vol:.0f}%)" if a > 0 else "0.0 tirs/p"
+        else:
+            txt_vol = f"{int(round(a))} {unit_lbl} ({pct_vol:.0f}%)" if a > 0 else "0 tirs"
+
+        frac_str = f"{int(round(m_tot))}/{int(round(a_tot))}"
+        txt_pps = f"{pps:.2f} PPS ({pct:.0f}% · {frac_str})" if a_tot > 0 else "0/0 (Sense tirs)"
+
+        # Colors coherents amb l'app: Volum (intensitat vermella) i Eficiència (Vermell bo / Blau dolent)
+        if a <= 0:
+            col_vol = "#e9ecef"
+        elif pct_vol >= 28.0:
+            col_vol = "#d00000"
+        elif pct_vol >= 15.0:
+            col_vol = "#e63946"
+        else:
+            col_vol = "#f28482"
+
+        if a_tot <= 0:
+            col_eff = "#e9ecef"
+        elif pps >= max(team_avg_pps + 0.08, 1.05):
+            col_eff = "#d00000"
+        elif pps <= max(team_avg_pps - 0.12, 0.80):
+            col_eff = "#0077b6"
+        else:
+            col_eff = "#6c757d"
+
+        rows_chart.append({
+            "Zona": z_name,
+            "Intents": round(a, 2),
+            "Mitjana_Equip": round(team_z_att_avg, 2),
+            "Text_Vol": txt_vol,
+            "PPS": round(pps, 2),
+            "Pct": round(pct, 1),
+            "Pct_Vol": round(pct_vol, 1),
+            "Fraccio": frac_str,
+            "Text_PPS": txt_pps,
+            "PPS_Equip_Zona": round(team_z_pps, 2),
+            "Color_Vol": col_vol,
+            "Color_Eff": col_eff,
+        })
+
+    df_z = pd.DataFrame(rows_chart)
+    zone_order = [z[0] for z in zones_cfg]
+
+    max_vol_x = max(float(df_z["Intents"].max()), float(df_z["Mitjana_Equip"].max()), 3.0) * 1.42
+    max_pps_x = max(float(df_z["PPS"].max()), team_avg_pps, 1.5) * 1.40
+
+    col_left, col_right = st.columns(2, gap="medium")
+
+    # GRÀFIC 1: VOLUM DE TIRS
+    with col_left:
+        st.caption(f"**Volum de Llançaments{suffix}** · Marca taronja = mitjana d'un jugador de l'equip")
+        base_v = alt.Chart(df_z)
+        bars_v = base_v.mark_bar(cornerRadiusEnd=4, height=26).encode(
+            x=alt.X("Intents:Q", title=f"Intents ({unit_lbl})", scale=alt.Scale(domain=[0, max_vol_x], nice=True)),
+            y=alt.Y("Zona:N", sort=zone_order, title=None),
+            color=alt.Color("Color_Vol:N", scale=None),
+            tooltip=[
+                alt.Tooltip("Zona:N", title="Zona"),
+                alt.Tooltip("Fraccio:N", title="Encerts / Intents (Totals)"),
+                alt.Tooltip("Intents:Q", title=f"Volum ({unit_lbl})", format=".1f"),
+                alt.Tooltip("Pct_Vol:Q", title="% dels seus tirs", format=".1f"),
+                alt.Tooltip("Mitjana_Equip:Q", title="Mitjana Equip/Jugador", format=".1f"),
+            ],
+        )
+        ticks_v = base_v.mark_tick(color="#f77f00", thickness=3, size=30).encode(
+            x="Mitjana_Equip:Q",
+            y=alt.Y("Zona:N", sort=zone_order),
+        )
+        text_v = base_v.mark_text(align="left", dx=6, fontSize=11, fontWeight="bold", color="#212529").encode(
+            x="Intents:Q",
+            y=alt.Y("Zona:N", sort=zone_order),
+            text="Text_Vol:N",
+        )
+        st.altair_chart((bars_v + ticks_v + text_v).properties(height=290), use_container_width=True)
+
+    # GRÀFIC 2: EFICIÈNCIA (PPS)
+    with col_right:
+        st.caption(f"**Eficiència de Tir (PPS)** · Línia taronja = mitjana equip ({team_avg_pps:.2f} PPS)")
+        base_e = alt.Chart(df_z)
+        bars_e = base_e.mark_bar(cornerRadiusEnd=4, height=26).encode(
+            x=alt.X("PPS:Q", title="Punts per Llançament (PPS)", scale=alt.Scale(domain=[0, max_pps_x], nice=True)),
+            y=alt.Y("Zona:N", sort=zone_order, title=None),
+            color=alt.Color("Color_Eff:N", scale=None),
+            tooltip=[
+                alt.Tooltip("Zona:N", title="Zona"),
+                alt.Tooltip("PPS:Q", title="PPS del Jugador", format=".2f"),
+                alt.Tooltip("Pct:Q", title="% Encert", format=".1f"),
+                alt.Tooltip("Fraccio:N", title="Encerts / Intents (Totals)"),
+                alt.Tooltip("PPS_Equip_Zona:Q", title="PPS Equip en aquesta zona", format=".2f"),
+            ],
+        )
+        rule_pps = alt.Chart(pd.DataFrame({"x": [team_avg_pps]})).mark_rule(
+            strokeDash=[5, 4], color="#f77f00", strokeWidth=2
+        ).encode(x="x:Q")
+        text_e = base_e.mark_text(align="left", dx=6, fontSize=11, fontWeight="bold", color="#212529").encode(
+            x="PPS:Q",
+            y=alt.Y("Zona:N", sort=zone_order),
+            text="Text_PPS:N",
+        )
+        st.altair_chart((bars_e + rule_pps + text_e).properties(height=290), use_container_width=True)
+        
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
@@ -2881,6 +3075,8 @@ if view_mode == "Partit Individual":
                 df_sorted = df_shots.sort_values(
                     by="PTS", ascending=False
                 ).reset_index(drop=True)
+                render_shooting_zones_charts(g_box, key_prefix="single", is_season=False, is_per_game=False)
+                st.markdown("---")
                 render_boxscore(df_sorted, "Zones")
             elif box_mode == "4 Factors Individuals":
               df_4f_ind = get_individual_four_factors(box_df, lineups_df, pbp_df, selected_game_id)
@@ -3961,6 +4157,8 @@ else:
 
                 df_shots_s["_dorsal_sort"] = pd.to_numeric(df_shots_s["#"].astype(str).str.replace("#", "").str.strip(), errors="coerce").fillna(999)
                 df_sorted = df_shots_s.sort_values(by="_dorsal_sort", ascending=True).drop(columns=["_dorsal_sort"]).reset_index(drop=True)
+                render_shooting_zones_charts(p_agg, key_prefix="season", is_season=True, is_per_game=is_pg)
+                st.markdown("---")
                 render_boxscore(df_sorted, "Zones", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "4 Factors Individuals":
