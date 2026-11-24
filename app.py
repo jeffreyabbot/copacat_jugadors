@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import base64
+import math
 import altair as alt
 from src.data_loader import CACHE_DIR, rebuild_cache
 from src.utils import (
@@ -1450,6 +1451,214 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
     )
     st.altair_chart(chart, use_container_width=True)
 
+def render_four_factors_radar(df_4f, box_or_agg, key_prefix="single", is_season=False, is_per_game=False):
+    """Dibuixa un Radar normalitzat (0-100) dels 4 Factors + USG% comparant fins a 2 jugadors i la mitjana de l'equip."""
+    if df_4f is None or df_4f.empty:
+        return
+
+    def _norm_txt(t):
+        return "".join(
+            c for c in unicodedata.normalize("NFD", str(t))
+            if unicodedata.category(c) != "Mn"
+        ).lower().strip()
+
+    def _clean_dorsal(val):
+        digits = re.sub(r"[^\d]", "", str(val))
+        return str(int(digits)) if digits else ""
+
+    def _to_float(val):
+        return float(pd.to_numeric(str(val).replace("%", "").replace(",", ".").strip(), errors="coerce") or 0.0)
+
+    def _norm_score(val, vmin, vmax, invert=False):
+        ratio = (val - vmin) / (vmax - vmin) if vmax != vmin else 0.5
+        if invert:
+            ratio = 1.0 - ratio
+        return round(max(0.0, min(100.0, ratio * 100.0)), 1)
+
+    # 1. Mapa de minuts des de box_or_agg
+    mins_by_num, mins_by_name = {}, {}
+    if box_or_agg is not None and not box_or_agg.empty:
+        for _, r in box_or_agg.iterrows():
+            k_num = _clean_dorsal(r["Player"])
+            k_name = _norm_txt(r["Name"])
+            if is_season:
+                pj = max(float(r.get("PJ", 1.0)), 1.0)
+                raw_m = float(pd.to_numeric(r.get("MIN_TOT", 0.0), errors="coerce") or 0.0)
+                m_val = (raw_m / pj) if is_per_game else raw_m
+            else:
+                m_val = parse_min_to_float(r.get("MIN", 0.0))
+            if k_num: mins_by_num[k_num] = m_val
+            if k_name: mins_by_name[k_name] = m_val
+
+    # 2. Extreure mètriques reals de df_4f
+    players_data = {}
+    for _, r in df_4f.iterrows():
+        p_num = str(r.get("#", "")).replace("#", "").strip()
+        p_name = str(r.get("Jugador", "")).strip()
+        label = f"#{p_num} {p_name}" if p_num else p_name
+        mins = mins_by_num.get(_clean_dorsal(p_num), mins_by_name.get(_norm_txt(p_name), 0.0))
+
+        players_data[label] = {
+            "mins": mins,
+            "efg": _to_float(r.get("1. eFG% (Tir)", 0.0)),
+            "tov": _to_float(r.get("2. TOV% (Pèrdues)", 0.0)),
+            "oreb": _to_float(r.get("3. OREB% (Rebot)", 0.0)),
+            "ftr": _to_float(r.get("4. FT Rate (TL)", 0.0)),
+            "usg": _to_float(r.get("USG%", 0.0)),
+        }
+
+    if not players_data:
+        return
+
+    player_labels = sorted(players_data.keys(), key=lambda x: int(_clean_dorsal(x.split()[0]) or 999))
+
+    # Mitjana de l'equip sobre els jugadors mostrats
+    avg_vals = {
+        k: sum(p[k] for p in players_data.values()) / len(players_data)
+        for k in ["efg", "tov", "oreb", "ftr", "usg"]
+    }
+
+    st.markdown("##### 🕸️ Perfil Radar dels 4 Factors + Ús (Normalitzat 0–100)")
+    st.caption("Escala fixa de rendiment (com més a fora, millor; **Cura Pilota** inverteix les pèrdues). Línia discontínua = mitjana de l'equip.")
+
+    c_sel1, c_sel2 = st.columns(2)
+    with c_sel1:
+        p1_sel = st.selectbox("🔴 Jugador Principal:", options=player_labels, index=0, key=f"{key_prefix}_radar_p1")
+    with c_sel2:
+        p2_opts = ["Cap (només vs Mitjana Equip)"] + [p for p in player_labels if p != p1_sel]
+        p2_sel = st.selectbox("🔵 Comparar amb (opcional):", options=p2_opts, index=0, key=f"{key_prefix}_radar_p2")
+
+    # Configuració dels 5 eixos (amb benchmarks reals)
+    axes_cfg = [
+        ("Tir (eFG%)", "efg", 25.0, 70.0, False, "{:.1f}%"),
+        ("Cura Pilota", "tov", 0.0, 30.0, True, "{:.1f}% TOV"),
+        ("Rebot Of. (OREB%)", "oreb", 0.0, 16.0, False, "{:.1f}%"),
+        ("Tirs Lliures (FTR)", "ftr", 0.0, 0.45, False, "{:.2f}"),
+        ("Protagonisme (USG%)", "usg", 5.0, 32.0, False, "{:.1f}%"),
+    ]
+    n_axes = len(axes_cfg)
+    angles = [math.pi / 2.0 - k * (2.0 * math.pi / n_axes) for k in range(n_axes)]
+
+    def _build_poly_df(vals_dict, series_name):
+        pts = []
+        for k, (ax_name, key, vmin, vmax, inv, fmt) in enumerate(axes_cfg):
+            raw_v = vals_dict[key]
+            score = _norm_score(raw_v, vmin, vmax, invert=inv)
+            pts.append({
+                "Eix": ax_name,
+                "Valor Real": fmt.format(raw_v),
+                "Puntuació (0-100)": score,
+                "Sèrie": series_name,
+                "order": k,
+                "x": score * math.cos(angles[k]),
+                "y": score * math.sin(angles[k]),
+            })
+        # Tanquem el polígon repetint el primer punt
+        p0 = dict(pts[0])
+        p0["order"] = n_axes
+        pts.append(p0)
+        return pd.DataFrame(pts)
+
+    # Graella de fons (anells 25, 50, 75, 100 i radis)
+    ring_rows = []
+    for r_val in [25, 50, 75, 100]:
+        for k in range(n_axes + 1):
+            ang = angles[k % n_axes]
+            ring_rows.append({"ring": f"r{r_val}", "order": k, "x": r_val * math.cos(ang), "y": r_val * math.sin(ang)})
+    df_rings = pd.DataFrame(ring_rows)
+
+    spoke_rows = []
+    label_rows = []
+    for k, (ax_name, _, _, _, _, _) in enumerate(axes_cfg):
+        ang = angles[k]
+        spoke_rows.append({"axis": ax_name, "order": 0, "x": 0.0, "y": 0.0})
+        spoke_rows.append({"axis": ax_name, "order": 1, "x": 100.0 * math.cos(ang), "y": 100.0 * math.sin(ang)})
+        label_rows.append({"Eix": ax_name, "x": 124.0 * math.cos(ang), "y": 115.0 * math.sin(ang)})
+
+    df_spokes = pd.DataFrame(spoke_rows)
+    df_labels = pd.DataFrame(label_rows)
+
+    layer_rings = alt.Chart(df_rings).mark_line(color="#dee2e6", strokeWidth=1).encode(
+        x=alt.X("x:Q", scale=alt.Scale(domain=[-155, 155]), axis=None),
+        y=alt.Y("y:Q", scale=alt.Scale(domain=[-135, 135]), axis=None),
+        detail="ring:N",
+        order="order:Q",
+    )
+    layer_spokes = alt.Chart(df_spokes).mark_line(color="#dee2e6", strokeWidth=1).encode(
+        x="x:Q", y="y:Q", detail="axis:N", order="order:Q"
+    )
+    layer_labels = alt.Chart(df_labels).mark_text(
+        fontSize=11, fontWeight="bold", color="#495057", align="center", baseline="middle"
+    ).encode(x="x:Q", y="y:Q", text="Eix:N")
+
+    # Mitjana de l'equip (discontínua grisa)
+    df_avg = _build_poly_df(avg_vals, "Mitjana Equip")
+    layer_avg = alt.Chart(df_avg).mark_line(
+        color="#6c757d", strokeDash=[5, 4], strokeWidth=2
+    ).encode(x="x:Q", y="y:Q", order="order:Q")
+
+    # Jugador 1 (Vermell Argentona)
+    df_p1 = _build_poly_df(players_data[p1_sel], p1_sel)
+    layer_p1_poly = alt.Chart(df_p1).mark_line(
+        color="#d00000", fill="#d00000", fillOpacity=0.22, strokeWidth=2.5
+    ).encode(x="x:Q", y="y:Q", order="order:Q")
+    layer_p1_pts = alt.Chart(df_p1.iloc[:-1]).mark_circle(color="#d00000", size=85).encode(
+        x="x:Q", y="y:Q",
+        tooltip=[
+            alt.Tooltip("Sèrie:N", title="Jugador"),
+            alt.Tooltip("Eix:N", title="Factor"),
+            alt.Tooltip("Valor Real:N", title="Dada Real"),
+            alt.Tooltip("Puntuació (0-100):Q", title="Nivell (0-100)", format=".0f"),
+        ],
+    )
+
+    radar_chart = layer_rings + layer_spokes + layer_labels + layer_avg + layer_p1_poly + layer_p1_pts
+
+    # Jugador 2 opcional (Blau)
+    if p2_sel != "Cap (només vs Mitjana Equip)":
+        df_p2 = _build_poly_df(players_data[p2_sel], p2_sel)
+        layer_p2_poly = alt.Chart(df_p2).mark_line(
+            color="#0077b6", fill="#0077b6", fillOpacity=0.14, strokeWidth=2.5
+        ).encode(x="x:Q", y="y:Q", order="order:Q")
+        layer_p2_pts = alt.Chart(df_p2.iloc[:-1]).mark_circle(color="#0077b6", size=85).encode(
+            x="x:Q", y="y:Q",
+            tooltip=[
+                alt.Tooltip("Sèrie:N", title="Jugador"),
+                alt.Tooltip("Eix:N", title="Factor"),
+                alt.Tooltip("Valor Real:N", title="Dada Real"),
+                alt.Tooltip("Puntuació (0-100):Q", title="Nivell (0-100)", format=".0f"),
+            ],
+        )
+        radar_chart = radar_chart + layer_p2_poly + layer_p2_pts
+
+    col_rad, col_tbl = st.columns([1.25, 1], vertical_alignment="center")
+    with col_rad:
+        st.altair_chart(
+            radar_chart.properties(width=460, height=420).configure_view(strokeWidth=0),
+            use_container_width=False,
+        )
+
+    with col_tbl:
+        min_suf = "min/p" if (is_season and is_per_game) else "min"
+        comp_rows = [
+            {"Mètrica": "⏱️ Minuts", p1_sel: f"{players_data[p1_sel]['mins']:.1f} {min_suf}", "Mitjana Equip": f"{sum(p['mins'] for p in players_data.values())/len(players_data):.1f} {min_suf}"},
+            {"Mètrica": "1. Tir (eFG%)", p1_sel: f"{players_data[p1_sel]['efg']:.1f}%", "Mitjana Equip": f"{avg_vals['efg']:.1f}%"},
+            {"Mètrica": "2. Pèrdues (TOV%)", p1_sel: f"{players_data[p1_sel]['tov']:.1f}%", "Mitjana Equip": f"{avg_vals['tov']:.1f}%"},
+            {"Mètrica": "3. Rebot Of. (OREB%)", p1_sel: f"{players_data[p1_sel]['oreb']:.1f}%", "Mitjana Equip": f"{avg_vals['oreb']:.1f}%"},
+            {"Mètrica": "4. Tirs Lliures (FTR)", p1_sel: f"{players_data[p1_sel]['ftr']:.2f}", "Mitjana Equip": f"{avg_vals['ftr']:.2f}"},
+            {"Mètrica": "5. Ús / Rol (USG%)", p1_sel: f"{players_data[p1_sel]['usg']:.1f}%", "Mitjana Equip": f"{avg_vals['usg']:.1f}%"},
+        ]
+        if p2_sel != "Cap (només vs Mitjana Equip)":
+            d2 = players_data[p2_sel]
+            comp_rows[0][p2_sel] = f"{d2['mins']:.1f} {min_suf}"
+            comp_rows[1][p2_sel] = f"{d2['efg']:.1f}%"
+            comp_rows[2][p2_sel] = f"{d2['tov']:.1f}%"
+            comp_rows[3][p2_sel] = f"{d2['oreb']:.1f}%"
+            comp_rows[4][p2_sel] = f"{d2['ftr']:.2f}"
+            comp_rows[5][p2_sel] = f"{d2['usg']:.1f}%"
+
+        st.dataframe(pd.DataFrame(comp_rows), use_container_width=True, hide_index=True)
+
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
@@ -2674,10 +2883,10 @@ if view_mode == "Partit Individual":
                 ).reset_index(drop=True)
                 render_boxscore(df_sorted, "Zones")
             elif box_mode == "4 Factors Individuals":
-                df_4f_ind = get_individual_four_factors(
-                    box_df, lineups_df, pbp_df, selected_game_id
-                )
-                render_boxscore(df_4f_ind, "4Factors")
+              df_4f_ind = get_individual_four_factors(box_df, lineups_df, pbp_df, selected_game_id)
+              render_four_factors_radar(df_4f_ind, g_box, key_prefix="single", is_season=False, is_per_game=False)
+              st.markdown("---")
+              render_boxscore(df_4f_ind, "4Factors")
                 
             elif box_mode == "Accions Defensives":
                 df_def = get_defensive_actions(g_box, pbp_df, selected_game_id)
@@ -3755,9 +3964,10 @@ else:
                 render_boxscore(df_sorted, "Zones", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "4 Factors Individuals":
-                # Usem comp_box_filtered perquè respecti el slider de minuts
-                df_4f_s = get_individual_four_factors(comp_box_filtered, comp_lineups, comp_pbp, game_id=None)
-                render_boxscore(df_4f_s, "4Factors")
+              df_4f_s = get_individual_four_factors(comp_box_filtered, comp_lineups, comp_pbp, game_id=None)
+              render_four_factors_radar(df_4f_s, p_agg, key_prefix="season", is_season=True, is_per_game=is_pg)
+              st.markdown("---")
+              render_boxscore(df_4f_s, "4Factors")
 
             elif box_mode_s == "Accions Defensives":
                 df_def_raw = get_defensive_actions(comp_box_filtered, comp_pbp, game_id=None)
