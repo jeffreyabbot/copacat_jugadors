@@ -1001,6 +1001,31 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
     st.markdown(f"##### 🎯 Producció Ofensiva Total vs Minuts i USG%{suffix}")
     st.caption("Mida de la bombolla = **% d'Ús (USG%)** · Línies discontínues = mitjana dels jugadors mostrats")
 
+    max_x = max(float(df_chart["Punts Produïts"].max()) * 1.12, 10.0)
+    max_y = max(float(df_chart["Minuts"].max()) * 1.18, 10.0)
+
+    # Evitar superposició de noms quan dues bombolles estan molt juntes
+    df_chart = df_chart.sort_values("Punts Produïts").reset_index(drop=True)
+    placed_labels = []
+    y_texts = []
+    for _, row in df_chart.iterrows():
+        cx, cy = row["Punts Produïts"], row["Minuts"]
+        chosen_yt = cy + max_y * 0.045
+        for off in [0.045, -0.055, 0.085, -0.095]:
+            cand_yt = cy + max_y * off
+            if cand_yt < max_y * 0.02:
+                continue
+            conflict = any(
+                abs(cx - lx) < max_x * 0.09 and abs(cand_yt - ly) < max_y * 0.06
+                for lx, ly in placed_labels
+            )
+            if not conflict:
+                chosen_yt = cand_yt
+                break
+        y_texts.append(chosen_yt)
+        placed_labels.append((cx, chosen_yt))
+    df_chart["y_text"] = y_texts
+
     avg_x = float(df_chart["Punts Produïts"].mean())
     avg_y = float(df_chart["Minuts"].mean())
 
@@ -1015,15 +1040,15 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
         strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
     ).encode(y="y:Q")
 
-    # Bombolles
+    # Bombolles (eixos clavats a 0 i amb aire suficient a dalt i a la dreta)
     points = base.mark_circle(
         color="#d00000",
         opacity=0.68,
         stroke="#800000",
         strokeWidth=1.5,
     ).encode(
-        x=alt.X("Punts Produïts:Q", title=x_title, scale=alt.Scale(zero=True, padding=15)),
-        y=alt.Y("Minuts:Q", title=y_title, scale=alt.Scale(zero=True, padding=15)),
+        x=alt.X("Punts Produïts:Q", title=x_title, scale=alt.Scale(domain=[0, max_x], nice=True)),
+        y=alt.Y("Minuts:Q", title=y_title, scale=alt.Scale(domain=[0, max_y], nice=True)),
         size=alt.Size(
             "USG%:Q",
             title="USG (%)",
@@ -1040,21 +1065,23 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
         ],
     )
 
-    # Noms al costat de cada bombolla
+    # Noms separats automàticament si s'apropen
     text = base.mark_text(
         align="center",
-        baseline="bottom",
-        dy=-12,
+        baseline="middle",
         fontSize=11,
         fontWeight="bold",
         color="#212529",
     ).encode(
         x="Punts Produïts:Q",
-        y="Minuts:Q",
+        y="y_text:Q",
         text="Etiqueta:N",
     )
 
-    chart = (rule_x + rule_y + points + text).properties(height=460).interactive()
+    chart = (rule_x + rule_y + points + text).properties(
+        height=480,
+        padding={"top": 18, "right": 12},
+    )
     st.altair_chart(chart, use_container_width=True)
 
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
