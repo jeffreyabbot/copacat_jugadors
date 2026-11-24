@@ -1852,7 +1852,240 @@ def render_shooting_zones_charts(box_or_agg, key_prefix="single", is_season=Fals
             text="Text_PPS:N",
         )
         st.altair_chart((bars_e + rule_pps + text_e).properties(height=290), use_container_width=True)
-        
+  
+def render_context_impact_charts(box_or_agg, df_ctx, is_season=False, is_per_game=False):
+    """Dos gràfics paral·lels per a tota la plantilla:
+    1) Transició + 2a Oportunitat (Encerts i Fallades)
+    2) Pèrdues Vives (LTO) vs Mortes (DTO)
+    """
+    if box_or_agg is None or box_or_agg.empty or df_ctx is None or df_ctx.empty:
+        return
+
+    def _norm_txt(t):
+        return "".join(
+            c for c in unicodedata.normalize("NFD", str(t))
+            if unicodedata.category(c) != "Mn"
+        ).lower().strip()
+
+    def _clean_dorsal(val):
+        digits = re.sub(r"[^\d]", "", str(val))
+        return str(int(digits)) if digits else ""
+
+    # 1. Mapa de minuts per filtrar inactius i calcular ràtios / 40m
+    mins_by_num, mins_by_name = {}, {}
+    for _, r in box_or_agg.iterrows():
+        k_num = _clean_dorsal(r["Player"])
+        k_name = _norm_txt(r["Name"])
+        if is_season:
+            pj = max(float(r.get("PJ", 1.0)), 1.0)
+            raw_m = float(pd.to_numeric(r.get("MIN_TOT", 0.0), errors="coerce") or 0.0)
+            m_val = (raw_m / pj) if is_per_game else raw_m
+        else:
+            m_val = parse_min_to_float(r.get("MIN", 0.0))
+        if k_num: mins_by_num[k_num] = m_val
+        if k_name: mins_by_name[k_name] = m_val
+
+    # 2. Extreure dades de df_ctx (ja adaptat a Totals o Per Partit)
+    bonus_summary = []
+    bonus_long = []
+    tov_summary = []
+    tov_long = []
+
+    per_col = "PER/P" if "PER/P" in df_ctx.columns else "PER Totals"
+    lto_col = "LTO/P" if "LTO/P" in df_ctx.columns else ("Vives (LTO)" if "Vives (LTO)" in df_ctx.columns else None)
+    dto_col = "DTO/P" if "DTO/P" in df_ctx.columns else ("Mortes (DTO)" if "Mortes (DTO)" in df_ctx.columns else None)
+
+    for _, r in df_ctx.iterrows():
+        p_num = str(r.get("#", "")).replace("#", "").strip()
+        p_name = str(r.get("Jugador", "")).strip()
+        mins = mins_by_num.get(_clean_dorsal(p_num), mins_by_name.get(_norm_txt(p_name), 0.0))
+        if mins <= 0:
+            continue
+
+        parts_n = p_name.split()
+        etiqueta = f"#{p_num} {parts_n[-1]}" if len(parts_n) >= 2 else f"#{p_num} {p_name}"
+        full_name = f"#{p_num} {p_name}"
+
+        # --- BLOC A: TRANSICIÓ + 2A OPORTUNITAT ---
+        fb_m, fb_a = parse_fraction(r.get("Transició", "0/0"))
+        ch2_m, ch2_a = parse_fraction(r.get("2a Oportunitat", "0/0"))
+
+        tot_m = fb_m + ch2_m
+        tot_a = fb_a + ch2_a
+        tot_miss = max(0.0, tot_a - tot_m)
+        pct_tot = (tot_m / tot_a * 100.0) if tot_a > 0 else 0.0
+
+        if is_season and is_per_game:
+            lbl_vol = f"{tot_m:.1f}/{tot_a:.1f} ({pct_tot:.0f}%)" if tot_a > 0 else "0.0/0.0"
+        else:
+            lbl_vol = f"{int(round(tot_m))}/{int(round(tot_a))} ({pct_tot:.0f}%)" if tot_a > 0 else "0/0"
+
+        bonus_summary.append({
+            "Etiqueta": etiqueta,
+            "Jugador": full_name,
+            "Total_Intents": round(tot_a, 2),
+            "Encerts_Tot": round(tot_m, 2),
+            "Pct_Total": round(pct_tot, 1),
+            "Trans_Str": str(r.get("Transició", "0/0")),
+            "Op2_Str": str(r.get("2a Oportunitat", "0/0")),
+            "Label_Vol": lbl_vol,
+        })
+
+        for tipus, val, ord_s in [
+            ("Transició (Encerts)", fb_m, 1),
+            ("2a Oportunitat (Encerts)", ch2_m, 2),
+            ("Fallades (Trans + 2a Op)", tot_miss, 3),
+        ]:
+            bonus_long.append({
+                "Etiqueta": etiqueta,
+                "Jugador": full_name,
+                "Tipus": tipus,
+                "Valor": round(val, 2),
+                "Ordre_Stack": ord_s,
+                "Trans_Str": str(r.get("Transició", "0/0")),
+                "Op2_Str": str(r.get("2a Oportunitat", "0/0")),
+                "Pct_Total": round(pct_tot, 1),
+            })
+
+        # --- BLOC B: PÈRDUES (VIVES vs MORTES) ---
+        per_tot = float(pd.to_numeric(r.get(per_col, 0.0), errors="coerce") or 0.0)
+        lto_val = float(pd.to_numeric(r.get(lto_col, 0.0), errors="coerce") or 0.0) if lto_col else 0.0
+        dto_val = float(pd.to_numeric(r.get(dto_col, 0.0), errors="coerce") or 0.0) if dto_col else 0.0
+
+        has_split = (lto_col is not None or dto_col is not None) and (lto_val + dto_val > 0 or per_tot == 0)
+        bar_per_tot = (lto_val + dto_val) if has_split else per_tot
+        pct_lto = (lto_val / bar_per_tot * 100.0) if (has_split and bar_per_tot > 0) else 0.0
+        per_40 = (per_tot / mins) * 40.0 if mins > 0 else 0.0
+
+        if is_season and is_per_game:
+            lbl_per = f"{per_tot:.1f} ({lto_val:.1f} LTO)" if has_split else f"{per_tot:.1f}"
+        else:
+            lbl_per = f"{int(round(per_tot))} ({int(round(lto_val))} LTO)" if has_split else f"{int(round(per_tot))}"
+
+        tov_summary.append({
+            "Etiqueta": etiqueta,
+            "Jugador": full_name,
+            "Total_PER": round(bar_per_tot, 2),
+            "LTO": round(lto_val, 1),
+            "DTO": round(dto_val, 1),
+            "Pct_Vives": round(pct_lto, 1),
+            "PER_40m": round(per_40, 1),
+            "Label_PER": lbl_per,
+        })
+
+        if has_split:
+            for tipus, val, ord_s in [("Vives (LTO)", lto_val, 1), ("Mortes (DTO)", dto_val, 2)]:
+                tov_long.append({
+                    "Etiqueta": etiqueta,
+                    "Jugador": full_name,
+                    "Tipus": tipus,
+                    "Valor": round(val, 2),
+                    "Ordre_Stack": ord_s,
+                    "Total_PER": round(bar_per_tot, 1),
+                    "LTO": round(lto_val, 1),
+                    "DTO": round(dto_val, 1),
+                    "Pct_Vives": round(pct_lto, 1),
+                    "PER_40m": round(per_40, 1),
+                })
+        else:
+            tov_long.append({
+                "Etiqueta": etiqueta,
+                "Jugador": full_name,
+                "Tipus": "Pèrdues Totals",
+                "Valor": round(per_tot, 2),
+                "Ordre_Stack": 1,
+                "Total_PER": round(per_tot, 1),
+                "LTO": 0.0,
+                "DTO": 0.0,
+                "Pct_Vives": 0.0,
+                "PER_40m": round(per_40, 1),
+            })
+
+    if not bonus_summary:
+        return
+
+    df_bsum = pd.DataFrame(bonus_summary).sort_values(["Total_Intents", "Encerts_Tot"], ascending=[False, False])
+    df_blong = pd.DataFrame(bonus_long)
+    df_tsum = pd.DataFrame(tov_summary).sort_values(["Total_PER", "LTO"], ascending=[False, False])
+    df_tlong = pd.DataFrame(tov_long)
+
+    bonus_order = df_bsum["Etiqueta"].tolist()
+    tov_order = df_tsum["Etiqueta"].tolist()
+
+    suffix = " / Partit" if (is_season and is_per_game) else (" (Temporada)" if is_season else "")
+    unit_tirs = "tirs/p" if (is_season and is_per_game) else "tirs"
+    unit_per = "per/p" if (is_season and is_per_game) else "pèrdues"
+
+    chart_h = max(280, len(bonus_order) * 30 + 60)
+    col_l, col_r = st.columns(2, gap="medium")
+
+    # GRÀFIC 1: TRANSICIÓ + 2A OPORTUNITAT
+    with col_l:
+        st.markdown(f"##### ⚡ Avantatges: Transició + 2a Oportunitat{suffix}")
+        st.caption("🔴 Transició (Encerts) · 🟠 2a Oportunitat (Encerts) · ⚪ Fallades")
+
+        max_bx = max(float(df_bsum["Total_Intents"].max()), 3.0) * 1.38
+        bars_b = alt.Chart(df_blong).mark_bar(height=20).encode(
+            x=alt.X("Valor:Q", title=f"Intents totals ({unit_tirs})", scale=alt.Scale(domain=[0, max_bx], nice=True)),
+            y=alt.Y("Etiqueta:N", sort=bonus_order, title=None),
+            color=alt.Color(
+                "Tipus:N",
+                scale=alt.Scale(
+                    domain=["Transició (Encerts)", "2a Oportunitat (Encerts)", "Fallades (Trans + 2a Op)"],
+                    range=["#d00000", "#f77f00", "#dee2e6"],
+                ),
+                legend=alt.Legend(orient="bottom", title=None),
+            ),
+            order=alt.Order("Ordre_Stack:Q", sort="ascending"),
+            tooltip=[
+                alt.Tooltip("Jugador:N", title="Jugador"),
+                alt.Tooltip("Trans_Str:N", title="Transició (A/I)"),
+                alt.Tooltip("Op2_Str:N", title="2a Oportunitat (A/I)"),
+                alt.Tooltip("Pct_Total:Q", title="% Encert Conjunt", format=".1f"),
+            ],
+        )
+        txt_b = alt.Chart(df_bsum).mark_text(align="left", dx=5, fontSize=11, fontWeight="bold", color="#212529").encode(
+            x="Total_Intents:Q",
+            y=alt.Y("Etiqueta:N", sort=bonus_order),
+            text="Label_Vol:N",
+        )
+        st.altair_chart((bars_b + txt_b).properties(height=chart_h), use_container_width=True)
+
+    # GRÀFIC 2: PÈRDUES VIVES (LTO) vs MORTES (DTO)
+    with col_r:
+        st.markdown(f"##### 🚨 Qualitat de Pèrdues: Vives (LTO) vs Mortes (DTO){suffix}")
+        avg_per = float(df_tsum["Total_PER"].mean())
+        st.caption(f"🔵 Vives/LTO (donen contraatac) · ⚪ Mortes/DTO · Línia = mitjana ({avg_per:.1f})")
+
+        max_tx = max(float(df_tsum["Total_PER"].max()), 3.0) * 1.38
+        has_any_split = "Vives (LTO)" in df_tlong["Tipus"].values
+        t_dom = ["Vives (LTO)", "Mortes (DTO)"] if has_any_split else ["Pèrdues Totals"]
+        t_rng = ["#0077b6", "#adb5bd"] if has_any_split else ["#0077b6"]
+
+        bars_t = alt.Chart(df_tlong).mark_bar(height=20).encode(
+            x=alt.X("Valor:Q", title=f"Total {unit_per}", scale=alt.Scale(domain=[0, max_tx], nice=True)),
+            y=alt.Y("Etiqueta:N", sort=tov_order, title=None),
+            color=alt.Color("Tipus:N", scale=alt.Scale(domain=t_dom, range=t_rng), legend=alt.Legend(orient="bottom", title=None)),
+            order=alt.Order("Ordre_Stack:Q", sort="ascending"),
+            tooltip=[
+                alt.Tooltip("Jugador:N", title="Jugador"),
+                alt.Tooltip("Total_PER:Q", title="Pèrdues Totals", format=".1f"),
+                alt.Tooltip("LTO:Q", title="• Vives (LTO)", format=".1f"),
+                alt.Tooltip("DTO:Q", title="• Mortes (DTO)", format=".1f"),
+                alt.Tooltip("Pct_Vives:Q", title="% Pèrdues Vives", format=".1f"),
+                alt.Tooltip("PER_40m:Q", title="Ritme Pèrdues / 40m", format=".1f"),
+            ],
+        )
+        rule_t = alt.Chart(pd.DataFrame({"x": [avg_per]})).mark_rule(
+            strokeDash=[4, 4], color="#495057", strokeWidth=1.5
+        ).encode(x="x:Q")
+        txt_t = alt.Chart(df_tsum).mark_text(align="left", dx=5, fontSize=11, fontWeight="bold", color="#212529").encode(
+            x="Total_PER:Q",
+            y=alt.Y("Etiqueta:N", sort=tov_order),
+            text="Label_PER:N",
+        )
+        st.altair_chart((bars_t + rule_t + txt_t).properties(height=chart_h), use_container_width=True)
+              
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
@@ -3172,7 +3405,8 @@ if view_mode == "Partit Individual":
                     .drop(columns=["_dorsal_sort"])
                     .reset_index(drop=True)
                 )
-
+                render_context_impact_charts(g_box, df_sorted, is_season=False, is_per_game=False)
+                st.markdown("---")
                 render_boxscore(df_sorted, "Context")
 
             elif box_mode == "Xarxa d'Assistències":
@@ -4235,6 +4469,8 @@ else:
 
                 df_ctx_s["_dorsal_sort"] = pd.to_numeric(df_ctx_s["#"].astype(str).str.replace("#", "").str.strip(), errors="coerce").fillna(999)
                 df_sorted = df_ctx_s.sort_values(by="_dorsal_sort", ascending=True).drop(columns=["_dorsal_sort"]).reset_index(drop=True)
+                render_context_impact_charts(p_agg, df_sorted, is_season=True, is_per_game=is_pg)
+                st.markdown("---")
                 render_boxscore(df_sorted, "Context", is_per_game=is_pg, is_totals_view=(not is_pg))
 
             elif box_mode_s == "Xarxa d'Assistències":
