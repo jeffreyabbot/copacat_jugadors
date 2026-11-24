@@ -1268,6 +1268,183 @@ def render_defensive_impact_chart(box_or_agg, df_def_raw, is_season=False, is_pe
     )
     st.altair_chart(chart, use_container_width=True)
 
+def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game=False):
+    """Gràfic de bombolles de rebot: RO/Min (X) vs RD/Min (Y), tamany = Pts 2a Oportunitat."""
+    if box_or_agg is None or box_or_agg.empty or df_reb is None or df_reb.empty:
+        return
+
+    def _norm_txt(t):
+        return "".join(
+            c for c in unicodedata.normalize("NFD", str(t))
+            if unicodedata.category(c) != "Mn"
+        ).lower().strip()
+
+    def _clean_dorsal(val):
+        digits = re.sub(r"[^\d]", "", str(val))
+        return str(int(digits)) if digits else ""
+
+    # 1. Mapa de dades de segona oportunitat i OREB% des de df_reb
+    reb_by_num = {}
+    reb_by_name = {}
+    for _, r in df_reb.iterrows():
+        info = {
+            "oreb_pct": float(pd.to_numeric(str(r.get("OREB%", 0.0)).replace("%", "").strip(), errors="coerce") or 0.0),
+            "pts_2a": float(pd.to_numeric(r.get("Pts 2a Op.", 0.0), errors="coerce") or 0.0),
+            "op2_ai": str(r.get("2a Op. (A/I)", "0/0")).replace("\u00a0", "").strip(),
+        }
+        k_num = _clean_dorsal(r.get("#", ""))
+        k_name = _norm_txt(r.get("Jugador", ""))
+        if k_num:
+            reb_by_num[k_num] = info
+        if k_name:
+            reb_by_name[k_name] = info
+
+    # 2. Construir dades exactes per minut des de box_or_agg (sense arrodoniments previs)
+    chart_rows = []
+    for _, r in box_or_agg.iterrows():
+        p_num = str(r["Player"]).replace("#", "").strip()
+        p_num_key = _clean_dorsal(p_num)
+        p_name = str(r["Name"]).strip()
+
+        if is_season:
+            pj = max(float(r.get("PJ", 1.0)), 1.0)
+            raw_min = float(pd.to_numeric(r.get("MIN_TOT", 0.0), errors="coerce") or 0.0)
+            raw_ro = float(pd.to_numeric(r.get("REB_O", 0.0), errors="coerce") or 0.0)
+            raw_rd = float(pd.to_numeric(r.get("REB_D", 0.0), errors="coerce") or 0.0)
+            mins_disp = (raw_min / pj) if is_per_game else raw_min
+            ro_disp = (raw_ro / pj) if is_per_game else raw_ro
+            rd_disp = (raw_rd / pj) if is_per_game else raw_rd
+        else:
+            raw_min = parse_min_to_float(r.get("MIN", 0.0))
+            raw_ro = float(pd.to_numeric(r.get("Off Reb", 0.0), errors="coerce") or 0.0)
+            raw_rd = float(pd.to_numeric(r.get("Def Reb", 0.0), errors="coerce") or 0.0)
+            mins_disp = raw_min
+            ro_disp = raw_ro
+            rd_disp = raw_rd
+
+        if raw_min <= 0:
+            continue
+
+        ro_min = raw_ro / raw_min
+        rd_min = raw_rd / raw_min
+        reb_min = ro_min + rd_min
+
+        extra = reb_by_num.get(p_num_key, reb_by_name.get(_norm_txt(p_name), {}))
+        pts_2a = extra.get("pts_2a", 0.0)
+        oreb_pct = extra.get("oreb_pct", 0.0)
+        op2_ai = extra.get("op2_ai", "0/0")
+
+        parts_n = p_name.split()
+        short_n = f"#{p_num} {parts_n[-1]}" if len(parts_n) >= 2 else f"#{p_num} {p_name}"
+
+        chart_rows.append({
+            "Etiqueta": short_n,
+            "Jugador": f"#{p_num} {p_name}",
+            "RO/Min": round(ro_min, 3),
+            "RD/Min": round(rd_min, 3),
+            "REB/Min": round(reb_min, 2),
+            "Pts 2a Op.": round(pts_2a, 1),
+            "2a Op. (A/I)": op2_ai,
+            "REB_O": round(ro_disp, 1),
+            "REB_D": round(rd_disp, 1),
+            "OREB%": round(oreb_pct, 1),
+            "Minuts": round(mins_disp, 1),
+        })
+
+    df_chart = pd.DataFrame(chart_rows)
+    if df_chart.empty:
+        return
+
+    suffix = " / Partit" if (is_season and is_per_game) else (" (Temporada)" if is_season else "")
+
+    st.markdown(f"##### 🏀 Rebot per Minut (Ofensiu vs Defensiu) i Punts 2a Oportunitat{suffix}")
+    st.caption("Eix X = **RO/Min** · Eix Y = **RD/Min** · Mida bombolla = **Punts 2a Oportunitat** · Línies discontínues = mitjana de l'equip")
+
+    max_x = max(float(df_chart["RO/Min"].max()) * 1.15, 0.05)
+    max_y = max(float(df_chart["RD/Min"].max()) * 1.18, 0.05)
+    max_pts2a = max(float(df_chart["Pts 2a Op."].max()), 2.0)
+
+    # Evitar superposició d'etiquetes
+    df_chart = df_chart.sort_values("RO/Min").reset_index(drop=True)
+    placed_labels = []
+    y_texts = []
+    for _, row in df_chart.iterrows():
+        cx, cy = row["RO/Min"], row["RD/Min"]
+        chosen_yt = cy + max_y * 0.045
+        for off in [0.045, -0.055, 0.085, -0.095]:
+            cand_yt = cy + max_y * off
+            if cand_yt < max_y * 0.02:
+                continue
+            conflict = any(
+                abs(cx - lx) < max_x * 0.09 and abs(cand_yt - ly) < max_y * 0.06
+                for lx, ly in placed_labels
+            )
+            if not conflict:
+                chosen_yt = cand_yt
+                break
+        y_texts.append(chosen_yt)
+        placed_labels.append((cx, chosen_yt))
+    df_chart["y_text"] = y_texts
+
+    avg_x = float(df_chart["RO/Min"].mean())
+    avg_y = float(df_chart["RD/Min"].mean())
+
+    base = alt.Chart(df_chart)
+
+    rule_x = alt.Chart(pd.DataFrame({"x": [avg_x]})).mark_rule(
+        strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
+    ).encode(x="x:Q")
+
+    rule_y = alt.Chart(pd.DataFrame({"y": [avg_y]})).mark_rule(
+        strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
+    ).encode(y="y:Q")
+
+    points = base.mark_circle(
+        color="#d00000",
+        opacity=0.68,
+        stroke="#800000",
+        strokeWidth=1.5,
+    ).encode(
+        x=alt.X("RO/Min:Q", title="Rebots Ofensius per Minut (RO/Min)", scale=alt.Scale(domain=[0, max_x], nice=True), axis=alt.Axis(format=".2f")),
+        y=alt.Y("RD/Min:Q", title="Rebots Defensius per Minut (RD/Min)", scale=alt.Scale(domain=[0, max_y], nice=True), axis=alt.Axis(format=".2f")),
+        size=alt.Size(
+            "Pts 2a Op.:Q",
+            title=f"Pts 2a Op.{suffix}",
+            scale=alt.Scale(range=[80, 1100], domain=[0, max_pts2a]),
+            legend=alt.Legend(orient="right"),
+        ),
+        tooltip=[
+            alt.Tooltip("Jugador:N", title="Jugador"),
+            alt.Tooltip("RO/Min:Q", title="RO / Minut", format=".2f"),
+            alt.Tooltip("RD/Min:Q", title="RD / Minut", format=".2f"),
+            alt.Tooltip("REB/Min:Q", title="Total REB / Minut", format=".2f"),
+            alt.Tooltip("Pts 2a Op.:Q", title="Punts 2a Oportunitat", format=".1f"),
+            alt.Tooltip("2a Op. (A/I):N", title="2a Op. (A/I)"),
+            alt.Tooltip("REB_O:Q", title="Rebots Ofensius", format=".1f"),
+            alt.Tooltip("REB_D:Q", title="Rebots Defensius", format=".1f"),
+            alt.Tooltip("OREB%:Q", title="OREB (%)", format=".1f"),
+            alt.Tooltip("Minuts:Q", title="Minuts", format=".1f"),
+        ],
+    )
+
+    text = base.mark_text(
+        align="center",
+        baseline="middle",
+        fontSize=11,
+        fontWeight="bold",
+        color="#212529",
+    ).encode(
+        x="RO/Min:Q",
+        y="y_text:Q",
+        text="Etiqueta:N",
+    )
+
+    chart = (rule_x + rule_y + points + text).properties(
+        height=480,
+        padding={"top": 18, "right": 12},
+    )
+    st.altair_chart(chart, use_container_width=True)
+
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
@@ -2654,6 +2831,8 @@ if view_mode == "Partit Individual":
                 df_reb["% 2a Op."] = ((ch2_m / ch2_tot.replace(0, np.nan)) * 100.0).fillna(0.0)
 
                 df_sorted = df_reb.sort_values(by=["REB_T", "REB_O"], ascending=False).reset_index(drop=True)
+                render_rebound_impact_chart(g_box, df_reb, is_season=False, is_per_game=False)
+                st.markdown("---")
                 render_boxscore(df_sorted, "Rebot", is_per_game=False, is_totals_view=False)
         else:
             st.info("No hi ha dades de Boxscore disponibles.")
@@ -3720,6 +3899,8 @@ else:
                 df_reb_s["% 2a Op."] = ((ch2_m_s / ch2_tot_s.replace(0, np.nan)) * 100.0).fillna(0.0)
 
                 df_sorted = df_reb_s.sort_values(by=["REB_T", "REB_O"], ascending=False).reset_index(drop=True)
+                render_rebound_impact_chart(p_agg, df_reb_s, is_season=True, is_per_game=is_pg)
+                st.markdown("---")
                 render_boxscore(df_sorted, "Rebot", is_per_game=is_pg, is_totals_view=(not is_pg))
         else:
             st.info("No hi ha dades acumulades de Boxscore disponibles.")
