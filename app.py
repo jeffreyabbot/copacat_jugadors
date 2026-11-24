@@ -1084,6 +1084,190 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
     )
     st.altair_chart(chart, use_container_width=True)
 
+def render_defensive_impact_chart(box_or_agg, df_def_raw, is_season=False, is_per_game=False):
+    """Dibuixa el gràfic de bombolles defensiu: (Defleccions + REC + TAP) vs Minuts, tamany = Faltes."""
+    if box_or_agg is None or box_or_agg.empty:
+        return
+
+    def _norm_txt(t):
+        return "".join(
+            c for c in unicodedata.normalize("NFD", str(t))
+            if unicodedata.category(c) != "Mn"
+        ).lower().strip()
+
+    def _clean_dorsal(val):
+        digits = re.sub(r"[^\d]", "", str(val))
+        return str(int(digits)) if digits else ""
+
+    # 1. Mapa d'accions defensives des de get_defensive_actions (sense dividir)
+    def_by_num = {}
+    def_by_name = {}
+    if df_def_raw is not None and not df_def_raw.empty:
+        for _, r in df_def_raw.iterrows():
+            defl = float(pd.to_numeric(r.get("Defleccions", 0.0), errors="coerce") or 0.0)
+            rec = float(pd.to_numeric(r.get("Robatoris (REC)", 0.0), errors="coerce") or 0.0)
+            tap = float(pd.to_numeric(r.get("Taps Totals (TAP)", 0.0), errors="coerce") or 0.0)
+            entry = {"defl": defl, "rec": rec, "tap": tap}
+
+            if "#" in df_def_raw.columns:
+                k_num = _clean_dorsal(r["#"])
+                if k_num:
+                    def_by_num[k_num] = entry
+            if "Jugador" in df_def_raw.columns:
+                def_by_name[_norm_txt(r["Jugador"])] = entry
+
+    # 2. Construir taula unificada per al gràfic
+    chart_rows = []
+    for _, r in box_or_agg.iterrows():
+        p_num = str(r["Player"]).replace("#", "").strip()
+        p_num_key = _clean_dorsal(p_num)
+        p_name = str(r["Name"]).strip()
+
+        if is_season:
+            pj = max(float(r.get("PJ", 1.0)), 1.0)
+            raw_min = float(pd.to_numeric(r.get("MIN_TOT", 0.0), errors="coerce") or 0.0)
+            raw_fal = float(pd.to_numeric(r.get("FAL", 0.0), errors="coerce") or 0.0)
+            raw_rec_fb = float(pd.to_numeric(r.get("REC", 0.0), errors="coerce") or 0.0)
+            raw_tap_fb = float(pd.to_numeric(r.get("TAP", 0.0), errors="coerce") or 0.0)
+
+            mins = (raw_min / pj) if is_per_game else raw_min
+            faltes = (raw_fal / pj) if is_per_game else raw_fal
+        else:
+            pj = 1.0
+            mins = parse_min_to_float(r.get("MIN", 0.0))
+            faltes = float(pd.to_numeric(r.get("Fouls", 0.0), errors="coerce") or 0.0)
+            raw_rec_fb = float(pd.to_numeric(r.get("Steals", 0.0), errors="coerce") or 0.0)
+            raw_tap_fb = float(pd.to_numeric(r.get("Blocks", 0.0), errors="coerce") or 0.0)
+
+        if mins <= 0:
+            continue
+
+        d_info = def_by_num.get(p_num_key, def_by_name.get(_norm_txt(p_name), None))
+        if d_info:
+            defl_tot, rec_tot, tap_tot = d_info["defl"], d_info["rec"], d_info["tap"]
+        else:
+            defl_tot, rec_tot, tap_tot = 0.0, raw_rec_fb, raw_tap_fb
+
+        div = pj if (is_season and is_per_game) else 1.0
+        defl = defl_tot / div
+        rec = rec_tot / div
+        tap = tap_tot / div
+        accions_tot = defl + rec + tap
+
+        acc_40 = (accions_tot / mins) * 40.0 if mins > 0 else 0.0
+        fal_40 = (faltes / mins) * 40.0 if mins > 0 else 0.0
+
+        parts_n = p_name.split()
+        short_n = f"#{p_num} {parts_n[-1]}" if len(parts_n) >= 2 else f"#{p_num} {p_name}"
+
+        chart_rows.append({
+            "Etiqueta": short_n,
+            "Jugador": f"#{p_num} {p_name}",
+            "Accions Defensives": round(accions_tot, 1),
+            "Defleccions": round(defl, 1),
+            "Recuperacions": round(rec, 1),
+            "Taps": round(tap, 1),
+            "Minuts": round(mins, 1),
+            "Faltes": round(faltes, 1),
+            "Accions / 40m": round(acc_40, 1),
+            "Faltes / 40m": round(fal_40, 1),
+        })
+
+    df_chart = pd.DataFrame(chart_rows)
+    if df_chart.empty:
+        return
+
+    suffix = " / Partit" if (is_season and is_per_game) else (" (Temporada)" if is_season else "")
+    x_title = f"Accions Defensives: Defleccions + REC + TAP{suffix}"
+    y_title = f"Minuts Jugats{suffix}"
+
+    st.markdown(f"##### 🛡️ Activitat Defensiva vs Minuts i Faltes Comeses{suffix}")
+    st.caption("Mida de la bombolla = **Faltes comeses** (més petita a la dreta = defensa més neta) · Línies discontínues = mitjana de l'equip")
+
+    max_x = max(float(df_chart["Accions Defensives"].max()) * 1.12, 5.0)
+    max_y = max(float(df_chart["Minuts"].max()) * 1.18, 10.0)
+    max_f = max(float(df_chart["Faltes"].max()), 5.0)
+
+    # Evitar superposició d'etiquetes
+    df_chart = df_chart.sort_values("Accions Defensives").reset_index(drop=True)
+    placed_labels = []
+    y_texts = []
+    for _, row in df_chart.iterrows():
+        cx, cy = row["Accions Defensives"], row["Minuts"]
+        chosen_yt = cy + max_y * 0.045
+        for off in [0.045, -0.055, 0.085, -0.095]:
+            cand_yt = cy + max_y * off
+            if cand_yt < max_y * 0.02:
+                continue
+            conflict = any(
+                abs(cx - lx) < max_x * 0.09 and abs(cand_yt - ly) < max_y * 0.06
+                for lx, ly in placed_labels
+            )
+            if not conflict:
+                chosen_yt = cand_yt
+                break
+        y_texts.append(chosen_yt)
+        placed_labels.append((cx, chosen_yt))
+    df_chart["y_text"] = y_texts
+
+    avg_x = float(df_chart["Accions Defensives"].mean())
+    avg_y = float(df_chart["Minuts"].mean())
+
+    base = alt.Chart(df_chart)
+
+    rule_x = alt.Chart(pd.DataFrame({"x": [avg_x]})).mark_rule(
+        strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
+    ).encode(x="x:Q")
+
+    rule_y = alt.Chart(pd.DataFrame({"y": [avg_y]})).mark_rule(
+        strokeDash=[4, 4], color="#adb5bd", strokeWidth=1.5
+    ).encode(y="y:Q")
+
+    points = base.mark_circle(
+        color="#d00000",
+        opacity=0.68,
+        stroke="#800000",
+        strokeWidth=1.5,
+    ).encode(
+        x=alt.X("Accions Defensives:Q", title=x_title, scale=alt.Scale(domain=[0, max_x], nice=True)),
+        y=alt.Y("Minuts:Q", title=y_title, scale=alt.Scale(domain=[0, max_y], nice=True)),
+        size=alt.Size(
+            "Faltes:Q",
+            title="Faltes",
+            scale=alt.Scale(range=[80, 1100], domain=[0, max_f]),
+            legend=alt.Legend(orient="right"),
+        ),
+        tooltip=[
+            alt.Tooltip("Jugador:N", title="Jugador"),
+            alt.Tooltip("Accions Defensives:Q", title="Accions Def. Totals", format=".1f"),
+            alt.Tooltip("Defleccions:Q", title="• Defleccions", format=".1f"),
+            alt.Tooltip("Recuperacions:Q", title="• Recuperacions (REC)", format=".1f"),
+            alt.Tooltip("Taps:Q", title="• Taps (TAP)", format=".1f"),
+            alt.Tooltip("Minuts:Q", title="Minuts", format=".1f"),
+            alt.Tooltip("Faltes:Q", title="Faltes Comeses", format=".1f"),
+            alt.Tooltip("Accions / 40m:Q", title="Ritme Accions / 40m", format=".1f"),
+            alt.Tooltip("Faltes / 40m:Q", title="Ritme Faltes / 40m", format=".1f"),
+        ],
+    )
+
+    text = base.mark_text(
+        align="center",
+        baseline="middle",
+        fontSize=11,
+        fontWeight="bold",
+        color="#212529",
+    ).encode(
+        x="Accions Defensives:Q",
+        y="y_text:Q",
+        text="Etiqueta:N",
+    )
+
+    chart = (rule_x + rule_y + points + text).properties(
+        height=480,
+        padding={"top": 18, "right": 12},
+    )
+    st.altair_chart(chart, use_container_width=True)
+
 def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     """Panell On/Off basat en possessions reals amb comparativa del Global de l'Equip."""
     if l_df.empty:
@@ -2312,12 +2496,12 @@ if view_mode == "Partit Individual":
                     box_df, lineups_df, pbp_df, selected_game_id
                 )
                 render_boxscore(df_4f_ind, "4Factors")
-            elif (
-                box_mode
-                == "Accions Defensives"
-            ):
+                
+            elif box_mode == "Accions Defensives":
                 df_def = get_defensive_actions(g_box, pbp_df, selected_game_id)
-                render_boxscore(df_def, "Defensa")
+                render_defensive_impact_chart(g_box, df_def, is_season=False, is_per_game=False)
+                st.markdown("---")
+                render_boxscore(df_def, "Defensa", is_per_game=False, is_totals_view=False)
 
             elif box_mode == "Impacte i Context":
                 df_ctx = pd.DataFrame()
@@ -3392,13 +3576,23 @@ else:
                 render_boxscore(df_4f_s, "4Factors")
 
             elif box_mode_s == "Accions Defensives":
-                df_def_s = get_defensive_actions(comp_box_filtered, comp_pbp, game_id=None)
+                df_def_raw = get_defensive_actions(comp_box_filtered, comp_pbp, game_id=None)
+
+                # Gràfic de bombolles defensiu (respecta Totals / Mitjanes i filtre de minuts)
+                render_defensive_impact_chart(p_agg, df_def_raw, is_season=True, is_per_game=is_pg)
+                st.markdown("---")
+
+                df_def_s = df_def_raw.copy()
                 if not df_def_s.empty and is_pg:
-                    pj_map = p_agg.set_index(["Player", "Name"])["PJ"].to_dict()
+                    pj_map_num = {str(r["Player"]).replace("#", "").strip(): r["PJ"] for _, r in p_agg.iterrows()}
+                    pj_map_name = {str(r["Name"]).strip(): r["PJ"] for _, r in p_agg.iterrows()}
                     for col in df_def_s.columns:
                         if col not in ["#", "Jugador", "MIN"] and pd.api.types.is_numeric_dtype(df_def_s[col]):
                             df_def_s[col] = [
-                                round(val / pj_map.get((r["#"], r["Jugador"]), 1), 1)
+                                round(
+                                    val / max(pj_map_num.get(str(r.get("#", "")).replace("#", "").strip(), pj_map_name.get(str(r.get("Jugador", "")).strip(), 1)), 1),
+                                    1,
+                                )
                                 for val, (_, r) in zip(df_def_s[col], df_def_s.iterrows())
                             ]
                 render_boxscore(df_def_s, "Defensa", is_per_game=is_pg, is_totals_view=(not is_pg))
