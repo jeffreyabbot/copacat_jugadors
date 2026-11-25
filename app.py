@@ -8,6 +8,8 @@ import streamlit as st
 import base64
 import math
 import altair as alt
+alt.themes.register("argentona_theme", lambda: {"config": {"font": "Roboto, sans-serif"}})
+alt.themes.enable("argentona_theme")
 from src.data_loader import CACHE_DIR, rebuild_cache
 from src.utils import (
     compute_pbp_advanced_stats,
@@ -24,7 +26,7 @@ from src.utils import (
 
 st.set_page_config(
     page_title="CB Argentona 26-27",
-    page_icon="🏀",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -36,11 +38,11 @@ def check_password():
     if st.session_state.get("authenticated", False):
         return True
 
-    st.title("🔒 Dashboard CB Argentona - Accés Staff")
+    st.title("Dashboard CB Argentona - Accés Staff")
     correct_password = st.secrets.get("auth", {}).get("password", None)
 
     if not correct_password:
-        st.error("⚠️ La contrasenya no està configurada als Secrets de Streamlit.")
+        st.error("La contrasenya no està configurada als Secrets de Streamlit.")
         st.stop()
 
     col_l1, col_l2, _ = st.columns([1.2, 1, 1])
@@ -53,184 +55,163 @@ def check_password():
                     st.session_state["authenticated"] = True
                     st.rerun()
                 else:
-                    st.error("❌ Contrasenya incorrecta.")
+                    st.error("Contrasenya incorrecta.")
     return False
 
 if not check_password():
     st.stop()  # Hides all sidebar, data loading, and dashboards until authenticated
 st.markdown(
     """
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-    /* --------------------------------------------------------- */
-    /* 1. CONFIGURACIÓ PER A ORDINADOR (PANTALLES > 768px)       */
-    /* --------------------------------------------------------- */
+    /* 1. TIPOGRAFIA BASE ÚNICA (Regles 1, 3, 4, 12) */
+    html, body, .stApp, [data-testid="stMarkdownContainer"] p, [data-testid="stCaptionContainer"] p {
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+        font-size: 15px !important;
+        font-weight: 400 !important;
+        color: #1f2937;
+    }
+
+    /* 2. TÍTOLS RECTES, PES 500, ESCALA CONTINGUDA I EQUILIBRATS (Regles 1-4, 7-10) */
+    h1, h2, h3, h4, h5,
+    .stHeading h1, .stHeading h2, .stHeading h3,
+    [data-testid="stHeadingWithActionElements"] h1,
+    [data-testid="stHeadingWithActionElements"] h2,
+    [data-testid="stHeadingWithActionElements"] h3,
+    [data-testid="stMarkdownContainer"] h1, [data-testid="stMarkdownContainer"] h2,
+    [data-testid="stMarkdownContainer"] h3, [data-testid="stMarkdownContainer"] h4,
+    [data-testid="stMarkdownContainer"] h5,
+    [data-testid="stSidebar"] h1 {
+        font-family: 'Roboto', -apple-system, BlinkMacSystemFont, sans-serif !important;
+        font-style: normal !important;
+        font-weight: 400 !important;
+        text-wrap: balance !important;
+        color: #1e293b !important;
+    }
+    h1, .stHeading h1, [data-testid="stHeadingWithActionElements"] h1, [data-testid="stMarkdownContainer"] h1 {
+        font-size: 1.55rem !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.02em !important;
+        line-height: 1.15 !important;
+        margin-bottom: 0.9rem !important;
+    }
+    [data-testid="stSidebar"] h1 {
+        font-size: 1.15rem !important;
+        font-weight: 500 !important;
+        text-align: center !important;
+        margin-top: 0.2rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+    [data-testid="stHeading"] h2, [data-testid="stMarkdownContainer"] h2 {
+        font-size: 1.25rem !important;      /* ~19px */
+        letter-spacing: -0.02em !important;
+        line-height: 1.2 !important;
+        margin-top: 2.2rem !important;
+        margin-bottom: 0.75rem !important;
+    }
+    [data-testid="stHeading"] h3, [data-testid="stMarkdownContainer"] h3 {
+        font-size: 1.08rem !important;      /* ~16px */
+        letter-spacing: -0.015em !important;
+        line-height: 1.25 !important;
+        margin-top: 1.6rem !important;
+    }
+    [data-testid="stMarkdownContainer"] h4, [data-testid="stMarkdownContainer"] h5 {
+        font-size: 0.95rem !important;      /* ~14.2px */
+        letter-spacing: -0.01em !important;
+        line-height: 1.3 !important;
+        margin-top: 1rem !important;
+    }
+
+    /* Separadors subtils amb més aire (Regla 9) */
+    [data-testid="stMarkdownContainer"] hr {
+        margin: 1.8rem 0 !important;
+        border-color: #f1f3f5 !important;
+    }
+
+    /* 3. BOTONS I SELECTORS: 1px MÉS PETITS (Regla 6) */
+    button, button p, [data-testid="stSegmentedControl"] button p, [data-baseweb="select"] div {
+        font-size: 13.5px !important;
+        font-weight: 400 !important;
+    }
+
+    /* 4. TARGETES KPI NETES I SENSE BADGES (Regles 2, 3, 5, 7, 11) */
+    .stMetric {
+        background-color: #fafafa;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 14px 16px;
+        min-height: 108px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+    [data-testid="stMetricLabel"], [data-testid="stMetricLabel"] p {
+        font-size: 13px !important;
+        font-weight: 400 !important;
+        color: #6b7280 !important;
+    }
+    [data-testid="stMetricValue"], [data-testid="stMetricValue"] > div {
+        font-size: 1.35rem !important;
+        font-weight: 500 !important;
+        letter-spacing: -0.025em !important;
+        font-variant-numeric: tabular-nums;
+        color: #111827 !important;
+        white-space: nowrap !important;
+    }
+    [data-testid="stMetricDelta"], [data-testid="stMetricDelta"] > div {
+        font-size: 13px !important;
+        font-weight: 500 !important;
+        background-color: transparent !important;
+        padding: 0 !important;
+        border-radius: 0 !important;
+    }
+
+    /* Deltes Vermell (Bo) i Blau (Dolent) */
+    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) { color: #d00000 !important; }
+    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg { fill: #d00000 !important; }
+    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) { color: #0077b6 !important; }
+    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg { fill: #0077b6 !important; }
+
+    /* Inversió només al DER de la fila de 5 targetes (On/Off) */
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) { color: #d00000 !important; }
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg { fill: #d00000 !important; }
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) { color: #0077b6 !important; }
+    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg { fill: #0077b6 !important; }
+
+    /* ORDINADOR */
     @media (min-width: 769px) {
-        [data-testid="stMainBlockContainer"],
-        .block-container,
-        section[data-testid="stMain"] > div {
+        [data-testid="stMainBlockContainer"], .block-container, section[data-testid="stMain"] > div {
             max-width: 1300px !important;
-            margin-left: auto !important;
-            margin-right: auto !important;
-            padding-top: 1.5rem !important;
-            padding-bottom: 2rem !important;
-            padding-left: 1.5rem !important;
-            padding-right: 1.5rem !important;
+            margin: 0 auto !important;
+            padding: 4.2rem 1.75rem 2rem 1.75rem !important;
         }
-
-        /* Sidebar ample només a l'ordinador quan està obert */
         [data-testid="stSidebar"][aria-expanded="true"] {
-            min-width: 360px !important;
-            max-width: 360px !important;
-        }
-
-        /* Targetes grans en ordinador */
-        .stMetric {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 16px;
-            min-height: 125px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        div[data-testid="stMetricValue"] {
-            font-size: 1.45rem !important;
-            font-weight: 700;
-            color: #212529;
-            white-space: nowrap !important;
-        }
-        div[data-testid="stMetricLabel"] {
-            font-size: 0.95rem;
-            font-weight: 600;
-            color: #495057;
+            min-width: 340px !important;
+            max-width: 340px !important;
         }
     }
 
-    /* --------------------------------------------------------- */
-    /* 2. ADAPTACIÓ MÒBIL TOTAL (PANTALLES <= 768px)             */
-    /* --------------------------------------------------------- */
+    /* MÒBIL */
     @media (max-width: 768px) {
-        /* Evitar desplaçament horitzontal estrany */
-        html, body, .stApp {
-            overflow-x: hidden !important;
-            width: 100vw !important;
+        html, body, .stApp, [data-testid="stMarkdownContainer"] p { overflow-x: hidden !important; font-size: 14px !important; }
+        [data-testid="stMainBlockContainer"], .block-container, section[data-testid="stMain"] > div {
+            max-width: 100vw !important; width: 100% !important;
+            padding: 4.4rem 0.75rem 2rem 0.75rem !important; margin: 0 !important;
         }
-
-        /* El contenidor aprofita el 100% de la pantalla del mòbil */
-        [data-testid="stMainBlockContainer"],
-        .block-container,
-        section[data-testid="stMain"] > div {
-            max-width: 100vw !important;
-            width: 100% !important;
-            padding-left: 0.75rem !important;
-            padding-right: 0.75rem !important;
-            padding-top: 4.2rem !important; /* 👈 Espai perquè la barra superior no tapi el títol */
-            padding-bottom: 2rem !important;
-            margin: 0 !important;
-        }
-        /* Assegurar que el Sidebar tancat NO ocupa espai invisible */
-        [data-testid="stSidebar"] {
-            min-width: 0 !important;
-        }
-
-        /* Les 4 targetes es converteixen en una graella 2x2 perfecta */
+        [data-testid="stSidebar"] { min-width: 0 !important; }
         div[data-testid="stHorizontalBlock"]:has(.stMetric) {
-            display: grid !important;
-            grid-template-columns: 1fr 1fr !important;
-            gap: 8px !important;
+            display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 8px !important;
         }
-        div[data-testid="stHorizontalBlock"]:has(.stMetric) > div {
-            width: 100% !important;
-            min-width: 0 !important;
-        }
-
-        .stMetric {
-            background-color: #f8f9fa;
-            border: 1px solid #e9ecef;
-            border-radius: 8px;
-            padding: 10px 8px !important;
-            min-height: 90px !important;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-        }
-        div[data-testid="stMetricValue"] {
-            font-size: 1.3rem !important;
-            font-weight: 700;
-        }
-        div[data-testid="stMetricLabel"] {
-            font-size: 0.78rem !important;
-            line-height: 1.15 !important;
-            font-weight: 600;
-        }
-        div[data-testid="stMetricDelta"] {
-            font-size: 0.72rem !important;
-            padding: 2px 4px !important;
-        }
-
-        /* Títol gran adaptat al mòbil */
-        h1 {
-            font-size: 1.35rem !important;
-            line-height: 1.25 !important;
-        }
-        h2, h3 {
-            font-size: 1.1rem !important;
-        }
-
-        /* Selector de pestanyes amb desplaçament tàctil */
-        div[data-testid="stSegmentedControl"] {
-            overflow-x: auto !important;
-            white-space: nowrap !important;
-            padding-bottom: 4px !important;
-        }
+        div[data-testid="stHorizontalBlock"]:has(.stMetric) > div { width: 100% !important; min-width: 0 !important; }
+        .stMetric { padding: 10px !important; min-height: 86px !important; }
+        div[data-testid="stMetricValue"] { font-size: 1.15rem !important; }
+        div[data-testid="stMetricLabel"] p, div[data-testid="stMetricDelta"] { font-size: 12px !important; }
+        [data-testid="stHeading"] h1 { font-size: 1.3rem !important; }
+        [data-testid="stHeading"] h2 { font-size: 1.08rem !important; margin-top: 1.5rem !important; }
+        [data-testid="stHeading"] h3 { font-size: 0.98rem !important; }
+        div[data-testid="stSegmentedControl"] { overflow-x: auto !important; white-space: nowrap !important; }
     }
 
-    /* --------------------------------------------------------- */
-    /* 3. DELTES EN VERMELL (BO) I BLAU (DOLENT)                 */
-    /* --------------------------------------------------------- */
-    /* A la targeta 4 (Defensa / DER), baixar és BO (Vermell) i pujar és DOLENT (Blau) */
-    /* Només a la fila de 5 targetes (On/Off), la targeta 4 (DER) inverteix colors: baixar és BO (Vermell) i pujar DOLENT (Blau) */
-    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {
-        color: #d00000 !important;
-        background-color: rgba(208, 0, 0, 0.12) !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg {
-        fill: #d00000 !important;
-    }
-
-    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
-        color: #0077b6 !important;
-        background-color: rgba(0, 119, 182, 0.12) !important;
-    }
-    div[data-testid="stHorizontalBlock"]:has(.stMetric):has(> div:nth-child(5)) > div:nth-child(4) div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg {
-        fill: #0077b6 !important;
-    }
-    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) {
-        color: #d00000 !important;
-        background-color: rgba(208, 0, 0, 0.12) !important;
-        border-radius: 6px;
-        padding: 3px 6px;
-        width: fit-content;
-        font-weight: 600;
-    }
-    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Up"]) svg {
-        fill: #d00000 !important;
-    }
-
-    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) {
-        color: #0077b6 !important;
-        background-color: rgba(0, 119, 182, 0.12) !important;
-        border-radius: 6px;
-        padding: 3px 6px;
-        width: fit-content;
-        font-weight: 600;
-    }
-    div[data-testid="stMetricDelta"]:has([data-testid="stMetricDeltaIcon-Down"]) svg {
-        fill: #0077b6 !important;
-    }
-
-    /* Text del desplegable a la barra lateral */
     [data-testid="stSidebar"] div[data-baseweb="select"] div {
         white-space: normal !important;
         line-height: 1.3 !important;
@@ -314,16 +295,24 @@ for candidate in logo_candidates:
             unsafe_allow_html=True,
         )
         break
-st.sidebar.title("CB Argentona 2026-2027")
+st.sidebar.markdown(
+    """
+    <div style="text-align: center; margin-bottom: 14px;">
+        <div style="font-size: 17px; font-weight: 500; color: #1e293b; letter-spacing: -0.015em;">CB Argentona</div>
+        <div style="font-size: 13px; font-weight: 400; color: #64748b;">Temporada 2026–2027</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-if st.sidebar.button("🔄 Sincronitzar Dades", use_container_width=True):
+if st.sidebar.button("Sincronitzar Dades", use_container_width=True):
     st.cache_data.clear()
     rebuild_cache()
     st.sidebar.success("Dades actualitzades!")
     st.rerun()
 
 if games_df.empty:
-    st.warning("⚠️ No s'han trobat partits a `data/raw/`.")
+    st.warning("No s'han trobat partits a `data/raw/`.")
     st.stop()
 
 # 1. Filtre de competició (Copa Catalunya per defecte si existeix)
@@ -366,7 +355,7 @@ else:
 
 # 4. Selector manual de partits específics per comparar
 st.sidebar.markdown("<br>", unsafe_allow_html=True)
-custom_compare = st.sidebar.checkbox("🎯 Triar partits concrets", value=False, help="Marca per triar manualment quins partits vols comparar")
+custom_compare = st.sidebar.checkbox("Triar partits concrets", value=False, help="Marca per triar manualment quins partits vols comparar")
 
 if custom_compare and not filtered_games.empty:
     game_dict_all = dict(zip(filtered_games["game_id"], filtered_games["name"]))
@@ -378,7 +367,7 @@ if custom_compare and not filtered_games.empty:
     )
     filtered_games = filtered_games[filtered_games["game_id"].isin(selected_ids)]
 
-st.sidebar.caption(f"📁 **{len(filtered_games)} partits seleccionats**")
+st.sidebar.caption(f"**{len(filtered_games)} partits seleccionats**")
 st.sidebar.markdown("---")
 
 view_mode = st.sidebar.radio(
@@ -453,25 +442,102 @@ def parse_fraction(s):
     except Exception:
         return 0.0, 0.0
 def render_boxscore(df, mode="Tradicional", is_per_game=False, is_totals_view=False):
-    calc_height = int((len(df) + 1) * 35.5) + 3
-    
+    """Renderitza el Boxscore amb ordenació numèrica real per a columnes de fraccions (A/I)."""
+    if df is None or df.empty:
+        st.info("No hi ha dades per mostrar.")
+        return
+
+    df_work = df.copy()
+
+    # Detectar automàticament quines columnes tenen fraccions (ex: "24/44" o "1.5/3.0")
+    frac_cols = []
+    for col in df_work.columns:
+        if col in ["#", "Jugador", "Passador", "Anotador", "Mètrica", "MIN"]:
+            continue
+        sample_vals = df_work[col].astype(str).tolist()
+        if any(
+            "/" in v and re.match(r"^\s*\d+(\.\d+)?\s*/\s*\d+(\.\d+)?\s*$", v.replace("\u00a0", ""))
+            for v in sample_vals
+        ):
+            frac_cols.append(col)
+
+    # Si hi ha columnes de fraccions, mostrem un selector net d'ordenació numèrica
+    if frac_cols:
+        uid = f"{re.sub(r'[^a-zA-Z0-9]', '', str(mode))}_{len(df_work.columns)}_{'pj' if 'PJ' in df_work.columns else 'sg'}"
+        col_s1, col_s2, _ = st.columns([1.4, 1.2, 2.2])
+        with col_s1:
+            sort_col = st.selectbox(
+                "Ordenar columna per",
+                options=["Ordre per defecte"] + frac_cols,
+                index=0,
+                key=f"sort_col_{uid}",
+            )
+        with col_s2:
+            sort_crit = st.selectbox(
+                "Criteri numèric",
+                options=["Volum (Intents)", "Encerts", "% Encert"],
+                index=0,
+                disabled=(sort_col == "Ordre per defecte"),
+                key=f"sort_crit_{uid}",
+            )
+
+        if sort_col != "Ordre per defecte":
+            parsed = [parse_fraction(v) for v in df_work[sort_col]]
+            if sort_crit == "Volum (Intents)":
+                keys = [(a, m) for m, a in parsed]
+            elif sort_crit == "Encerts":
+                # Més encerts primer; en empat, qui ha necessitat menys tirs (-a)
+                keys = [(m, -a) for m, a in parsed]
+            else:
+                # Millor % primer (0/0 al final); en empat, qui ha tirat més (a)
+                keys = [((m / a * 100.0) if a > 0 else -1.0, a) for m, a in parsed]
+
+            df_work["_sk1"] = [k[0] for k in keys]
+            df_work["_sk2"] = [k[1] for k in keys]
+            df_work = (
+                df_work.sort_values(by=["_sk1", "_sk2"], ascending=[False, False])
+                .drop(columns=["_sk1", "_sk2"])
+                .reset_index(drop=True)
+            )
+
+    calc_height = int((len(df_work) + 1) * 35.5) + 3
+
     col_cfg = {}
-    for c in df.columns:
-        if "(A/I)" in c or "2a Op" in c or "Transició" in c or "2a Oportunitat" in c:
+    for c in df_work.columns:
+        if "(A/I)" in c or "2a Op" in c or "Transició" in c or "2a Oportunitat" in c or c in frac_cols:
             try:
                 col_cfg[c] = st.column_config.Column(alignment="right")
             except Exception:
                 pass
 
     st.dataframe(
-        style_boxscore(df, mode, is_per_game, is_totals_view),
+        style_boxscore(df_work, mode, is_per_game, is_totals_view),
         height=calc_height,
         use_container_width=True,
         hide_index=True,
         column_config=col_cfg if col_cfg else None,
     )
-    
 
+def render_four_factors_table(df_ff, wins_flags):
+    """Destaca subtilment només el text de Diferencial Net (vermell/blau) sense fons."""
+    def _apply_ff_style(df):
+        css = pd.DataFrame("", index=df.index, columns=df.columns)
+        for col in df.columns:
+            css[col] = "text-align: left;" if col == "Factor" else "text-align: right;"
+
+        for idx, won in enumerate(wins_flags):
+            color = "#d00000" if won else "#0077b6"
+            if "Diferencial Net" in df.columns:
+                css.loc[idx, "Diferencial Net"] = f"color: {color}; font-weight: 500; text-align: right;"
+        return css
+
+    st.dataframe(
+        df_ff.style.apply(_apply_ff_style, axis=None),
+        height=int((len(df_ff) + 1) * 35) + 3,
+        use_container_width=True,
+        hide_index=True,
+    )
+     
 def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_view=False):
     def apply_row_styles(df):
         css_df = pd.DataFrame("text-align: right;", index=df.index, columns=df.columns)
@@ -511,7 +577,7 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                                 t2_vol_limit = (4.0 * pj_val) if is_totals_view else (4.0 if is_per_game else 6.0)
                                 if pct >= 55.0 or (m >= t2_vol_limit and pct >= 50.0):
                                     color = STYLE_RED
-                                elif pct < 40.0:  # 👈 Ara qualsevol per sota del 40% surt blau!
+                                elif pct < 40.0:  # Ara qualsevol per sota del 40% surt blau!
                                     color = STYLE_BLUE
 
                             elif shot_pct == "%T3":
@@ -606,7 +672,7 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                         v = float(row["3. OREB% (Rebot)"])
                         if v >= 9.0:
                             css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_RED
-                        elif v <= 3.0:  # 👈 També blau per al 0%
+                        elif v <= 3.0:  # També blau per al 0%
                             css_df.loc[i, "3. OREB% (Rebot)"] = STYLE_BLUE
                     except Exception:
                         pass
@@ -743,7 +809,7 @@ def style_boxscore(df_disp, mode="Tradicional", is_per_game=False, is_totals_vie
                             v = float(row[oreb_col])
                             if v >= 9.0:
                                 css_df.loc[i, oreb_col] = STYLE_RED
-                            elif v <= 3.0:  # 👈 Aquí el 0% es pintarà en BLAU!
+                            elif v <= 3.0:  # Aquí el 0% es pintarà en BLAU!
                                 css_df.loc[i, oreb_col] = STYLE_BLUE
                         except Exception: pass
 
@@ -999,7 +1065,7 @@ def render_offensive_impact_chart(box_or_agg, df_creadors, df_4f, is_season=Fals
     x_title = f"Punts Produïts: Anotats + Assistits{suffix}"
     y_title = f"Minuts Jugats{suffix}"
 
-    st.markdown(f"##### 🎯 Producció Ofensiva Total vs Minuts i USG%{suffix}")
+    st.markdown(f"##### Producció Ofensiva Total vs Minuts i USG%{suffix}")
     st.caption("Mida de la bombolla = **% d'Ús (USG%)** · Línies discontínues = mitjana dels jugadors mostrats")
 
     max_x = max(float(df_chart["Punts Produïts"].max()) * 1.12, 10.0)
@@ -1182,7 +1248,7 @@ def render_defensive_impact_chart(box_or_agg, df_def_raw, is_season=False, is_pe
     x_title = f"Accions Defensives: Defleccions + REC + TAP{suffix}"
     y_title = f"Minuts Jugats{suffix}"
 
-    st.markdown(f"##### 🛡️ Activitat Defensiva vs Minuts i Faltes Comeses{suffix}")
+    st.markdown(f"##### Activitat Defensiva vs Minuts i Faltes Comeses{suffix}")
     st.caption("Mida de la bombolla = **Faltes comeses** (més petita a la dreta = defensa més neta) · Línies discontínues = mitjana de l'equip")
 
     max_x = max(float(df_chart["Accions Defensives"].max()) * 1.12, 5.0)
@@ -1359,7 +1425,7 @@ def render_rebound_impact_chart(box_or_agg, df_reb, is_season=False, is_per_game
 
     suffix = " / Partit" if (is_season and is_per_game) else (" (Temporada)" if is_season else "")
 
-    st.markdown(f"##### 🏀 Rebot per Minut (Ofensiu vs Defensiu) i Punts 2a Oportunitat{suffix}")
+    st.markdown(f"##### Rebot per Minut (Ofensiu vs Defensiu) i Punts 2a Oportunitat{suffix}")
     st.caption("Eix X = **RO/Min** · Eix Y = **RD/Min** · Mida bombolla = **Punts 2a Oportunitat** · Línies discontínues = mitjana de l'equip")
 
     max_x = max(float(df_chart["RO/Min"].max()) * 1.15, 0.05)
@@ -1518,15 +1584,15 @@ def render_four_factors_radar(df_4f, box_or_agg, key_prefix="single", is_season=
         for k in ["efg", "tov", "oreb", "ftr", "usg"]
     }
 
-    st.markdown("##### 🕸️ Perfil Radar dels 4 Factors + Ús (Normalitzat 0–100)")
+    st.markdown("##### Perfil Radar dels 4 Factors + Ús (Normalitzat 0–100)")
     st.caption("Escala fixa de rendiment (com més a fora, millor; **Cura Pilota** inverteix les pèrdues). Línia discontínua = mitjana de l'equip.")
 
     c_sel1, c_sel2 = st.columns(2)
     with c_sel1:
-        p1_sel = st.selectbox("🔴 Jugador Principal:", options=player_labels, index=0, key=f"{key_prefix}_radar_p1")
+        p1_sel = st.selectbox("Jugador Principal:", options=player_labels, index=0, key=f"{key_prefix}_radar_p1")
     with c_sel2:
         p2_opts = ["Cap (només vs Mitjana Equip)"] + [p for p in player_labels if p != p1_sel]
-        p2_sel = st.selectbox("🔵 Comparar amb (opcional):", options=p2_opts, index=0, key=f"{key_prefix}_radar_p2")
+        p2_sel = st.selectbox("Comparar amb (opcional):", options=p2_opts, index=0, key=f"{key_prefix}_radar_p2")
 
     # Configuració dels 5 eixos (amb benchmarks reals)
     axes_cfg = [
@@ -1641,7 +1707,7 @@ def render_four_factors_radar(df_4f, box_or_agg, key_prefix="single", is_season=
     with col_tbl:
         min_suf = "min/p" if (is_season and is_per_game) else "min"
         comp_rows = [
-            {"Mètrica": "⏱️ Minuts", p1_sel: f"{players_data[p1_sel]['mins']:.1f} {min_suf}", "Mitjana Equip": f"{sum(p['mins'] for p in players_data.values())/len(players_data):.1f} {min_suf}"},
+            {"Mètrica": "Minuts", p1_sel: f"{players_data[p1_sel]['mins']:.1f} {min_suf}", "Mitjana Equip": f"{sum(p['mins'] for p in players_data.values())/len(players_data):.1f} {min_suf}"},
             {"Mètrica": "1. Tir (eFG%)", p1_sel: f"{players_data[p1_sel]['efg']:.1f}%", "Mitjana Equip": f"{avg_vals['efg']:.1f}%"},
             {"Mètrica": "2. Pèrdues (TOV%)", p1_sel: f"{players_data[p1_sel]['tov']:.1f}%", "Mitjana Equip": f"{avg_vals['tov']:.1f}%"},
             {"Mètrica": "3. Rebot Of. (OREB%)", p1_sel: f"{players_data[p1_sel]['oreb']:.1f}%", "Mitjana Equip": f"{avg_vals['oreb']:.1f}%"},
@@ -1724,10 +1790,10 @@ def render_shooting_zones_charts(box_or_agg, key_prefix="single", is_season=Fals
 
     player_labels = sorted(players_zones.keys(), key=lambda x: int(_clean_dorsal(x.split()[0]) or 999))
 
-    st.markdown("##### 🎯 Perfil de Tir per Zones (Volum i Eficiència PPS)")
+    st.markdown("##### Perfil de Tir per Zones (Volum i Eficiència PPS)")
     col_sel, _ = st.columns([1.4, 1.6])
     with col_sel:
-        sel_p = st.selectbox("👤 Selecciona el Jugador per analitzar el seu mapa de tir:", options=player_labels, key=f"{key_prefix}_zones_player")
+        sel_p = st.selectbox("Selecciona el Jugador per analitzar el seu mapa de tir:", options=player_labels, key=f"{key_prefix}_zones_player")
 
     p_info = players_zones[sel_p]
     p_tot_att = sum(v["a"] for v in p_info["zones"].values())
@@ -2021,8 +2087,8 @@ def render_context_impact_charts(box_or_agg, df_ctx, is_season=False, is_per_gam
 
     # GRÀFIC 1: TRANSICIÓ + 2A OPORTUNITAT
     with col_l:
-        st.markdown(f"##### ⚡ Avantatges: Transició + 2a Oportunitat{suffix}")
-        st.caption("🔴 Transició (Encerts) · 🟠 2a Oportunitat (Encerts) · ⚪ Fallades")
+        st.markdown(f"##### Avantatges: Transició + 2a Oportunitat{suffix}")
+        st.caption("Transició (Encerts) · 2a Oportunitat (Encerts) · Fallades")
 
         max_bx = max(float(df_bsum["Total_Intents"].max()), 3.0) * 1.38
         bars_b = alt.Chart(df_blong).mark_bar(height=20).encode(
@@ -2053,9 +2119,9 @@ def render_context_impact_charts(box_or_agg, df_ctx, is_season=False, is_per_gam
 
     # GRÀFIC 2: PÈRDUES VIVES (LTO) vs MORTES (DTO)
     with col_r:
-        st.markdown(f"##### 🚨 Qualitat de Pèrdues: Vives (LTO) vs Mortes (DTO){suffix}")
+        st.markdown(f"##### Qualitat de Pèrdues: Vives (LTO) vs Mortes (DTO){suffix}")
         avg_per = float(df_tsum["Total_PER"].mean())
-        st.caption(f"🔵 Vives/LTO (donen contraatac) · ⚪ Mortes/DTO · Línia = mitjana ({avg_per:.1f})")
+        st.caption(f"Vives/LTO (donen contraatac) · Mortes/DTO · Línia = mitjana ({avg_per:.1f})")
 
         max_tx = max(float(df_tsum["Total_PER"].max()), 3.0) * 1.38
         has_any_split = "Vives (LTO)" in df_tlong["Tipus"].values
@@ -2116,7 +2182,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     col_sel, _ = st.columns([1.5, 1])
     with col_sel:
         selected_p_tuple = st.selectbox(
-            "👤 Selecciona el Jugador per a l'anàlisi On / Off:",
+            "Selecciona el Jugador per a l'anàlisi On / Off:",
             options=player_options,
             format_func=lambda x: x[0],
             key=f"{key_prefix}_player_select",
@@ -2129,9 +2195,9 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     df_on = l_df[is_on_mask].copy()
     df_off = l_df[~is_on_mask].copy()
 
-    st_tot = aggregate_lineup_data(l_df)      # 👈 Global de tot l'equip
-    st_on = aggregate_lineup_data(df_on)       # 👈 Amb el jugador
-    st_off = aggregate_lineup_data(df_off)     # 👈 Sense el jugador
+    st_tot = aggregate_lineup_data(l_df)      # Global de tot l'equip
+    st_on = aggregate_lineup_data(df_on)       # Amb el jugador
+    st_off = aggregate_lineup_data(df_off)     # Sense el jugador
 
     # Possessions
     poss_on = st_on.get("poss", 0)
@@ -2161,12 +2227,12 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     st.markdown(
         f"""
         <div style="background-color: #f8f9fa; border: 1px solid #dee2e6; border-left: 5px solid #d00000; border-radius: 8px; padding: 12px 18px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: space-between;">
-            <span style="font-weight: 700; color: #212529;">🏁 Mitjana Global de l'Equip:</span>
-            <span>⚡ Net Rating: <b style="color: {'#d00000' if net_tot >= 0 else '#0077b6'};">{net_tot:+.1f}</b></span>
-            <span>🎯 Atac (OER): <b>{oer_tot:.1f}</b> pts/100</span>
-            <span>🛡️ Defensa (DER): <b>{der_tot:.1f}</b> pts/100</span>
-            <span>⚖️ Marcador +/-: <b style="color: {'#d00000' if pm_tot >= 0 else '#0077b6'};">{int(pm_tot):+d} pts</b></span>
-            <span>🏀 Possessions Totals: <b>{tot_poss}</b></span>
+            <span style="font-weight: 700; color: #212529;">Mitjana Global de l'Equip:</span>
+            <span>Net Rating: <b style="color: {'#d00000' if net_tot >= 0 else '#0077b6'};">{net_tot:+.1f}</b></span>
+            <span>Atac (OER): <b>{oer_tot:.1f}</b> pts/100</span>
+            <span>Defensa (DER): <b>{der_tot:.1f}</b> pts/100</span>
+            <span>Marcador +/-: <b style="color: {'#d00000' if pm_tot >= 0 else '#0077b6'};">{int(pm_tot):+d} pts</b></span>
+            <span>Possessions Totals: <b>{tot_poss}</b></span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -2176,29 +2242,29 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     k1, k2, k3, k4, k5 = st.columns(5)
     
     k1.metric(
-        "🏀 Possessions Jugades",
+        "Possessions Jugades",
         f"{disp_on_poss} ON / {disp_off_poss} OFF",
         delta=f"Temps joc: {pct_poss:.0f}% del total",
         delta_color="off",
     )
     k2.metric(
-        "⚡ Net Rating (Pts/100)",
+        "Net Rating (Pts/100)",
         f"{net_on:+.1f}",
         delta=f"{net_on - net_off:+.1f} vs off",
     )
     k3.metric(
-        "🎯 Eficiència Atac (OER)",
+        "Eficiència Atac (OER)",
         f"{oer_on:.1f} pts",
         delta=f"{oer_on - oer_off:+.1f} pts/100 vs off",
     )
     der_diff = der_on - der_off
     k4.metric(
-        "🛡️ Eficiència Defensa (DER)",
+        "Eficiència Defensa (DER)",
         f"{der_on:.1f} pts",
         delta=f"{der_diff:+.1f} pts/100 vs off",
     )
     k5.metric(
-        "⚖️ Marcador +/- Real",
+        "Marcador +/- Real",
         f"{int(pm_on):+d} pts",
         delta=f"{int(pm_on - pm_off):+d} pts marge net",
     )
@@ -2206,19 +2272,19 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     st.markdown("---")
 
     # 5. TAULES COMPARATIVES: BALANÇ NET SEPARAT D'ATAC I DEFENSA
-    st.subheader(f"📊 Impacte On vs Off de {p_label}")
+    st.subheader(f"Impacte On vs Off de {p_label}")
 
     # A) Mini-taula superior: Balanç Net Total (Híbrid Atac + Defensa)
     df_net = pd.DataFrame([
         {
-            "Mètrica": "⚡ Net Rating (Pts/100)",
+            "Mètrica": "Net Rating (Pts/100)",
             "Amb Jugador (ON)": f"{st_on.get('net_rtg', 0):+.1f}",
             "Global Equip": f"{st_tot.get('net_rtg', 0):+.1f}",
             "Sense Jugador (OFF)": f"{st_off.get('net_rtg', 0):+.1f}",
             "Diferencial": f"{st_on.get('net_rtg', 0) - st_off.get('net_rtg', 0):+.1f}",
         },
         {
-            "Mètrica": "⚖️ Marcador +/- Real",
+            "Mètrica": "Marcador +/- Real",
             "Amb Jugador (ON)": f"{int(pm_on):+d} pts",
             "Global Equip": f"{int(pm_tot):+d} pts",
             "Sense Jugador (OFF)": f"{int(pm_off):+d} pts",
@@ -2232,9 +2298,9 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
     col_offense, col_defense = st.columns(2)
 
     with col_offense:
-        st.markdown("#### 🔴 Atac d'Argentona")
+        st.markdown("#### Atac d'Argentona")
         df_offense = pd.DataFrame([
-            {"Mètrica": "🎯 Eficiència Atac (OER)", "Amb Jugador (ON)": f"{st_on.get('oer', 0):.1f} pts", "Global Equip": f"{st_tot.get('oer', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('oer', 0):.1f} pts", "Diferencial": f"{st_on.get('oer', 0) - st_off.get('oer', 0):+.1f}"},
+            {"Mètrica": "Eficiència Atac (OER)", "Amb Jugador (ON)": f"{st_on.get('oer', 0):.1f} pts", "Global Equip": f"{st_tot.get('oer', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('oer', 0):.1f} pts", "Diferencial": f"{st_on.get('oer', 0) - st_off.get('oer', 0):+.1f}"},
             {"Mètrica": "1. Tir Efectiu (eFG%)", "Amb Jugador (ON)": f"{st_on.get('efg', 0):.1f}%", "Global Equip": f"{st_tot.get('efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('efg', 0):.1f}%", "Diferencial": f"{st_on.get('efg', 0) - st_off.get('efg', 0):+.1f}%"},
             {"Mètrica": "2. % Tir de 2 (2P%)", "Amb Jugador (ON)": f"{st_on.get('pct_2p', 0):.1f}% ({int(st_on.get('2pm',0))}/{int(st_on.get('2pa',0))})", "Global Equip": f"{st_tot.get('pct_2p', 0):.1f}% ({int(st_tot.get('2pm',0))}/{int(st_tot.get('2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_2p', 0):.1f}% ({int(st_off.get('2pm',0))}/{int(st_off.get('2pa',0))})", "Diferencial": f"{st_on.get('pct_2p', 0) - st_off.get('pct_2p', 0):+.1f}%"},
             {"Mètrica": "3. % Triples (3P%)", "Amb Jugador (ON)": f"{st_on.get('pct_3p', 0):.1f}% ({int(st_on.get('3pm',0))}/{int(st_on.get('3pa',0))})", "Global Equip": f"{st_tot.get('pct_3p', 0):.1f}% ({int(st_tot.get('3pm',0))}/{int(st_tot.get('3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('pct_3p', 0):.1f}% ({int(st_off.get('3pm',0))}/{int(st_off.get('3pa',0))})", "Diferencial": f"{st_on.get('pct_3p', 0) - st_off.get('pct_3p', 0):+.1f}%"},
@@ -2246,9 +2312,9 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
         st.dataframe(df_offense, use_container_width=True, hide_index=True)
 
     with col_defense:
-        st.markdown("#### 🛡️ Defensa (Rivals)")
+        st.markdown("#### Defensa (Rivals)")
         df_defense = pd.DataFrame([
-            {"Mètrica": "🛡️ Eficiència Defensa (DER)", "Amb Jugador (ON)": f"{st_on.get('der', 0):.1f} pts", "Global Equip": f"{st_tot.get('der', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('der', 0):.1f} pts", "Diferencial": f"{st_on.get('der', 0) - st_off.get('der', 0):+.1f}"},
+            {"Mètrica": "Eficiència Defensa (DER)", "Amb Jugador (ON)": f"{st_on.get('der', 0):.1f} pts", "Global Equip": f"{st_tot.get('der', 0):.1f} pts", "Sense Jugador (OFF)": f"{st_off.get('der', 0):.1f} pts", "Diferencial": f"{st_on.get('der', 0) - st_off.get('der', 0):+.1f}"},
             {"Mètrica": "1. Tir Efectiu Rival (eFG%)", "Amb Jugador (ON)": f"{st_on.get('opp_efg', 0):.1f}%", "Global Equip": f"{st_tot.get('opp_efg', 0):.1f}%", "Sense Jugador (OFF)": f"{st_off.get('opp_efg', 0):.1f}%", "Diferencial": f"{st_on.get('opp_efg', 0) - st_off.get('opp_efg', 0):+.1f}%"},
             {"Mètrica": "2. % Tir de 2 Rival (2P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_2p', 0):.1f}% ({int(st_on.get('opp_2pm',0))}/{int(st_on.get('opp_2pa',0))})", "Global Equip": f"{st_tot.get('opp_pct_2p', 0):.1f}% ({int(st_tot.get('opp_2pm',0))}/{int(st_tot.get('opp_2pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_2p', 0):.1f}% ({int(st_off.get('opp_2pm',0))}/{int(st_off.get('opp_2pa',0))})", "Diferencial": f"{st_on.get('opp_pct_2p', 0) - st_off.get('opp_pct_2p', 0):+.1f}%"},
             {"Mètrica": "3. % Triples Rival (3P%)", "Amb Jugador (ON)": f"{st_on.get('opp_pct_3p', 0):.1f}% ({int(st_on.get('opp_3pm',0))}/{int(st_on.get('opp_3pa',0))})", "Global Equip": f"{st_tot.get('opp_pct_3p', 0):.1f}% ({int(st_tot.get('opp_3pm',0))}/{int(st_tot.get('opp_3pa',0))})", "Sense Jugador (OFF)": f"{st_off.get('opp_pct_3p', 0):.1f}% ({int(st_off.get('opp_3pm',0))}/{int(st_off.get('opp_3pa',0))})", "Diferencial": f"{st_on.get('opp_pct_3p', 0) - st_off.get('opp_pct_3p', 0):+.1f}%"},
@@ -2261,7 +2327,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
 
     # 6. ANÀLISI DE QUÍMICA: COMBINACIONS DE 2, 3 I 5 JUGADORS
     st.markdown("---")
-    st.subheader(f"🤝 Anàlisi de Combinacions i Química ({p_label})")
+    st.subheader(f"Anàlisi de Combinacions i Química ({p_label})")
 
     # A) Targetes ràpides: Millor i Pitjor Parella del Jugador seleccionat
     min_poss_cards = 8 if key_prefix == "season" else 2
@@ -2280,7 +2346,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
                 f"""
                 <div style="background-color: rgba(208, 0, 0, 0.07); border: 1px solid rgba(208, 0, 0, 0.25); border-left: 5px solid #d00000; border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
                     <div style="font-size: 1.05rem; font-weight: 700; color: #d00000; margin-bottom: 6px;">
-                        🌟 Millor Parella: amb {best_partner}
+                        Millor Parella: amb {best_partner}
                     </div>
                     <div style="font-size: 0.95rem; color: #212529; margin-bottom: 4px;">
                         • Net Rating: <b style="color: #d00000;">{best_duo['Net Rating']:+.1f}</b> pts/100 &nbsp;|&nbsp; +/-: <b style="color: #d00000;">{best_duo['+/-']:+d}</b> pts
@@ -2297,7 +2363,7 @@ def render_on_off_dashboard(l_df, b_df, key_prefix="single"):
                 f"""
                 <div style="background-color: rgba(0, 119, 182, 0.07); border: 1px solid rgba(0, 119, 182, 0.25); border-left: 5px solid #0077b6; border-radius: 8px; padding: 14px 18px; margin-bottom: 14px;">
                     <div style="font-size: 1.05rem; font-weight: 700; color: #0077b6; margin-bottom: 6px;">
-                        ⚠️ Pitjor Parella: amb {worst_partner}
+                        Pitjor Parella: amb {worst_partner}
                     </div>
                     <div style="font-size: 0.95rem; color: #212529; margin-bottom: 4px;">
                         • Net Rating: <b style="color: #0077b6;">{worst_duo['Net Rating']:+.1f}</b> pts/100 &nbsp;|&nbsp; +/-: <b style="color: #0077b6;">{worst_duo['+/-']:+d}</b> pts
@@ -2391,13 +2457,47 @@ if view_mode == "Partit Individual":
         format_func=lambda x: game_dict.get(x, x),
     )
 
-    st.title(f"{game_dict.get(selected_game_id, 'Partit')}")
+    g_meta_row = filtered_games[filtered_games["game_id"].astype(str) == str(selected_game_id)]
+    if not g_meta_row.empty:
+        gm = g_meta_row.iloc[0]
+        our_t = str(gm.get("our_team", "CB Argentona")).strip()
+        opp_t = str(gm.get("opponent", "Rival")).strip()
+        sc_t, sc_o = gm.get("score_team"), gm.get("score_opp")
+        if pd.notna(sc_t) and pd.notna(sc_o):
+            score_title = f"{our_t} {int(sc_t)} – {int(sc_o)} {opp_t}"
+        else:
+            score_title = f"{our_t} vs {opp_t}"
+
+        raw_d = str(gm.get("date", "")).strip()
+        d_fmt = f"{raw_d[8:10]}/{raw_d[5:7]}/{raw_d[:4]}" if re.match(r"^\d{4}-\d{2}-\d{2}$", raw_d) else raw_d
+        meta_items = [
+            str(x).strip()
+            for x in [gm.get("competition", ""), gm.get("round", ""), d_fmt, gm.get("pista", "")]
+            if str(x).strip()
+        ]
+        meta_str = " · ".join(meta_items)
+
+        st.markdown(
+            f"""
+            <div style="margin-bottom: 14px;">
+                <div style="font-size: 13px; font-weight: 400; color: #64748b; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.03em;">
+                    {meta_str}
+                </div>
+                <div style="font-size: 24px; font-weight: 500; color: #1e293b; letter-spacing: -0.02em; line-height: 1.15;">
+                    {score_title}
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    else:
+        st.title(f"{game_dict.get(selected_game_id, 'Partit')}")
 
     # Barra superior de navegació persistent
     active_tab = st.segmented_control(
         "Navegació",
-        options=["📈 Mètriques i 4 Factors", "📋 Box Score", "👥 Quintets i On/Off"],
-        default="📈 Mètriques i 4 Factors",
+        options=["Mètriques i 4 Factors", "Box Score", "Quintets i On/Off"],
+        default="Mètriques i 4 Factors",
         key="main_active_tab",
         label_visibility="collapsed",
     )
@@ -2409,7 +2509,7 @@ if view_mode == "Partit Individual":
 # 1. PESTAÑA: MÈTRIQUES, 4 FACTORS I EFICIÈNCIA (PARTIT INDIVIDUAL)
 # -------------------------------------------------------------
 
-    if active_tab == "📈 Mètriques i 4 Factors":
+    if active_tab == "Mètriques i 4 Factors":
         g_adv = adv_df[adv_df["game_id"] == str(selected_game_id)].copy()
 
         if not g_adv.empty:
@@ -2603,7 +2703,7 @@ if view_mode == "Partit Individual":
             kpi2.metric(
                 "2. Control Pèrdues (TOV%)",
                 f"{tov_team:.1f}%",
-                delta=f"{tov_opp - tov_team:+.1f}% marge",
+                delta=f"{tov_opp - tov_team:+.1f}% vs Rival",
             )
             kpi3.metric(
                 "3. Rebot Ofensiu (OREB%)",
@@ -2618,7 +2718,7 @@ if view_mode == "Partit Individual":
 
             st.markdown("---")
             # 4.1 VOLUMS DE LLANÇAMENT DEL PARTIT
-            st.subheader("📦 Volums de Llançament del Partit")
+            st.subheader("Volums de Llançament del Partit")
             col_v1, col_v2 = st.columns(2)
 
             with col_v1:
@@ -2662,7 +2762,7 @@ if view_mode == "Partit Individual":
                         },
                     ]
                 )
-                st.markdown("##### 🔴 Volums Argentona")
+                st.markdown("##### Volums Argentona")
                 st.dataframe(
                     df_vol_team_single, use_container_width=True, hide_index=True
                 )
@@ -2708,7 +2808,7 @@ if view_mode == "Partit Individual":
                         },
                     ]
                 )
-                st.markdown("##### 🛡️ Volums Rival")
+                st.markdown("##### Volums Rival")
                 st.dataframe(
                     df_vol_opp_single, use_container_width=True, hide_index=True
                 )
@@ -2722,54 +2822,39 @@ if view_mode == "Partit Individual":
             factors_guanyats = sum([win_efg, win_tov, win_oreb, win_ft])
 
             st.subheader(
-                f"🎯 Els 4 Factors (Dean Oliver) — Balanç: {factors_guanyats}/4 Guanyats"
+                f"Els 4 Factors (Dean Oliver) — Balanç: {factors_guanyats}/4 Guanyats"
             )
 
             df_four_factors_unified = pd.DataFrame(
                 [
                     {
                         "Factor": "1. Tir Efectiu (eFG%)",
-                        "🔴 El nostre Atac": f"{efg_team:.1f}%",
-                        "🛡️ La nostra Defensa (Rival)": f"{efg_opp:.1f}%",
+                        "El nostre Atac": f"{efg_team:.1f}%",
+                        "La nostra Defensa (Rival)": f"{efg_opp:.1f}%",
                         "Diferencial Net": f"{efg_team - efg_opp:+.1f}%",
-                        "Impacte": "🔴 Guanyat (Més encert efectiu)"
-                        if win_efg
-                        else "🔵 Perdut (Rival més efectiu)",
                     },
                     {
                         "Factor": "2. Control de Pèrdues (TOV%)",
-                        "🔴 El nostre Atac": f"{tov_team:.1f}%",
-                        "🛡️ La nostra Defensa (Rival)": f"{tov_opp:.1f}%",
-                        "Diferencial Net": f"{tov_opp - tov_team:+.1f}% marge",
-                        "Impacte": "🔴 Guanyat (Hem cuidat millor la pilota)"
-                        if win_tov
-                        else "🔵 Perdut (Hem perdut més possessions)",
+                        "El nostre Atac": f"{tov_team:.1f}%",
+                        "La nostra Defensa (Rival)": f"{tov_opp:.1f}%",
+                        "Diferencial Net": f"{tov_opp - tov_team:+.1f}%",
                     },
                     {
                         "Factor": "3. Rebot Ofensiu (OREB%)",
-                        "🔴 El nostre Atac": f"{oreb_team:.1f}%",
-                        "🛡️ La nostra Defensa (Rival)": f"{oreb_opp:.1f}%",
+                        "El nostre Atac": f"{oreb_team:.1f}%",
+                        "La nostra Defensa (Rival)": f"{oreb_opp:.1f}%",
                         "Diferencial Net": f"{oreb_team - oreb_opp:+.1f}%",
-                        "Impacte": "🔴 Guanyat (Més segones opcions)"
-                        if win_oreb
-                        else "🔵 Perdut (Rival ha carregat millor el rebot)",
                     },
                     {
                         "Factor": "4. Freqüència TL (FT Rate)",
-                        "🔴 El nostre Atac": f"{ft_rate_team:.2f}",
-                        "🛡️ La nostra Defensa (Rival)": f"{ft_rate_opp:.2f}",
+                        "El nostre Atac": f"{ft_rate_team:.2f}",
+                        "La nostra Defensa (Rival)": f"{ft_rate_opp:.2f}",
                         "Diferencial Net": f"{ft_rate_team - ft_rate_opp:+.2f}",
-                        "Impacte": "🔴 Guanyat (Més punts sumats des del TL)"
-                        if win_ft
-                        else "🔵 Perdut (Rival ha anat més a la línia)",
                     },
                 ]
             )
-
-            st.dataframe(
-                df_four_factors_unified,
-                use_container_width=True,
-                hide_index=True,
+            render_four_factors_table(
+                df_four_factors_unified, [win_efg, win_tov, win_oreb, win_ft]
             )
 
             st.markdown("---")
@@ -2792,20 +2877,20 @@ if view_mode == "Partit Individual":
                 match_der = ((s_opp_pts / match_poss) * 100.0) if match_poss > 0 else 0.0
                 match_net = match_oer - match_der
 
-            st.subheader("⚡ Eficiència Global de Possessió")
+            st.subheader("Eficiència Global de Possessió")
             c_pace, c_oer, c_der = st.columns(3)
             c_pace.metric(
-                "⏱️ Ritme de Joc (Pace a 40 min)",
+                "Ritme de Joc (Pace a 40 min)",
                 f"{match_pace:.1f} poss",
                 delta=f"{match_poss:.1f} possessions reals",
             )
             c_oer.metric(
-                "🎯 OER (Eficiència Ofensiva)",
+                "OER (Eficiència Ofensiva)",
                 f"{match_oer:.1f} pts/100",
                 delta=f"{match_net:+.1f} Net Rating",
             )
             c_der.metric(
-                "🛡️ DER (Eficiència Defensiva)",
+                "DER (Eficiència Defensiva)",
                 f"{match_der:.1f} pts/100",
                 delta=f"{match_oer - match_der:+.1f} marge",
             )
@@ -2813,7 +2898,7 @@ if view_mode == "Partit Individual":
             st.markdown("---")
 
             # 7. TAULA DE DESGLOSSAMENT D'EFICIÈNCIA (14 FILES FIXES I HOMOGÈNIES)
-            st.subheader("📊 Desglossament d'Eficiència de Tir i Joc")
+            st.subheader("Desglossament d'Eficiència de Tir i Joc")
             col_table, _ = st.columns([3, 1])
 
             with col_table:
@@ -3171,7 +3256,7 @@ if view_mode == "Partit Individual":
     # -------------------------------------------------------------
     # 2. SECCIÓ BOX SCORE (PARTIT INDIVIDUAL)
     # -------------------------------------------------------------
-    elif active_tab == "📋 Box Score":
+    elif active_tab == "Box Score":
         g_box = box_df[box_df["game_id"] == str(selected_game_id)].copy()
 
         if not g_box.empty:
@@ -3429,12 +3514,12 @@ if view_mode == "Partit Individual":
 
                 if not df_rank.empty:
                     st.markdown("---")
-                    st.markdown("##### 🗲 Punts Totals Generats per Creador")
+                    st.markdown("##### Punts Totals Generats per Creador")
                     df_c_disp = df_creadors.rename(columns={"Assistències_Totals": "AST", "Punts_Generats_Totals": "PTS Generats", "T2_Generats": "T2 Assistits", "T3_Generats": "T3 Assistits"})
                     render_boxscore(df_c_disp, "Assistències")
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("##### 🤝 Connexions i Duos (Passador ➔ Anotador)")
+                    st.markdown("##### Connexions i Duos (Passador ➔ Anotador)")
                     df_r_disp = df_rank.rename(columns={"Assistències": "AST", "Punts_Generats": "PTS Generats", "T2": "T2 Assistits", "T3": "T3 Assistits"})
                     render_boxscore(df_r_disp, "Assistències")
                 else:
@@ -3484,7 +3569,7 @@ if view_mode == "Partit Individual":
 # -------------------------------------------------------------
     # 3. SECCIÓ QUINTETS I ON/OFF (PARTIT INDIVIDUAL)
     # -------------------------------------------------------------
-    elif active_tab == "👥 Quintets i On/Off":
+    elif active_tab == "Quintets i On/Off":
         g_line = lineups_df[lineups_df["game_id"].astype(str) == str(selected_game_id)].copy()
         g_box = box_df[box_df["game_id"].astype(str) == str(selected_game_id)].copy()
         
@@ -3505,8 +3590,8 @@ else:
     if custom_compare:
         active_filters.append("Partits Personalitzats")
 
-    st.title(f"🏆 Totals Acumulats ({num_partits} partits)")
-    st.caption(f"📌 **Filtres actius:** {' • '.join(active_filters)}")
+    st.title(f"Totals Acumulats ({num_partits} partits)")
+    st.caption(f"**Filtres actius:** {' • '.join(active_filters)}")
 
     # Dades acumulades de tots els partits seleccionats
     comp_box = box_df[box_df["game_id"].astype(str).isin(valid_ids)].copy()
@@ -3522,8 +3607,8 @@ else:
 
     active_tab_season = st.segmented_control(
         "Navegació Acumulats",
-        options=["📈 Mètriques i 4 Factors", "📋 Box Score", "👥 Quintets i On/Off"],
-        default="📈 Mètriques i 4 Factors",
+        options=["Mètriques i 4 Factors", "Box Score", "Quintets i On/Off"],
+        default="Mètriques i 4 Factors",
         key="season_active_tab",
         label_visibility="collapsed",
     )
@@ -3533,7 +3618,7 @@ else:
     # -------------------------------------------------------------
     # 1. PESTAÑA: MÈTRIQUES, 4 FACTORS I EFICIÈNCIA (ACUMULATS)
     # -------------------------------------------------------------
-    if active_tab_season == "📈 Mètriques i 4 Factors":
+    if active_tab_season == "Mètriques i 4 Factors":
         if not comp_lineups.empty or not comp_box.empty:
 
             def safe_col_sum(df, col):
@@ -3659,7 +3744,7 @@ else:
             kpi2.metric(
                 "2. Control Pèrdues (TOV%)",
                 f"{tov_team:.1f}%",
-                delta=f"{tov_opp - tov_team:+.1f}% marge",
+                delta=f"{tov_opp - tov_team:+.1f}% vs Rivals",
             )
             kpi3.metric(
                 "3. Rebot Ofensiu (OREB%)",
@@ -3675,7 +3760,7 @@ else:
             st.markdown("---")
 
             # 5. VOLUMS DE LLANÇAMENT
-            st.subheader("📦 Volums de Llançament de la Temporada")
+            st.subheader("Volums de Llançament de la Temporada")
             col_v1, col_v2 = st.columns(2)
 
             with col_v1:
@@ -3719,7 +3804,7 @@ else:
                         },
                     ]
                 )
-                st.markdown("##### 🔴 Volums Argentona")
+                st.markdown("##### Volums Argentona")
                 st.dataframe(
                     df_vol_team, use_container_width=True, hide_index=True
                 )
@@ -3775,7 +3860,7 @@ else:
                         },
                     ]
                 )
-                st.markdown("##### 🛡️ Volums Rivals")
+                st.markdown("##### Volums Rivals")
                 st.dataframe(
                     df_vol_opp, use_container_width=True, hide_index=True
                 )
@@ -3792,52 +3877,40 @@ else:
             )
 
             st.subheader(
-                f"🎯 Els 4 Factors Reals de la Temporada — Balanç: {factors_guanyats_s}/4 Guanyats"
+                f"Els 4 Factors Reals de la Temporada — Balanç: {factors_guanyats_s}/4 Guanyats"
             )
 
             df_ff_unified_season = pd.DataFrame(
                 [
                     {
                         "Factor": "1. Tir Efectiu (eFG%)",
-                        "🔴 Atac Argentona": f"{efg_team:.1f}%",
-                        "🛡️ Defensa (Rivals)": f"{efg_opp:.1f}%",
+                        "Atac Argentona": f"{efg_team:.1f}%",
+                        "Defensa (Rivals)": f"{efg_opp:.1f}%",
                         "Diferencial Net": f"{efg_team - efg_opp:+.1f}%",
-                        "Impacte": "🔴 Guanyat (Més efectivitat)"
-                        if win_efg_s
-                        else "🔵 Perdut",
                     },
                     {
                         "Factor": "2. Control de Pèrdues (TOV%)",
-                        "🔴 Atac Argentona": f"{tov_team:.1f}%",
-                        "🛡️ Defensa (Rivals)": f"{tov_opp:.1f}%",
-                        "Diferencial Net": f"{tov_opp - tov_team:+.1f}% marge",
-                        "Impacte": "🔴 Guanyat (Millor cura de pilota)"
-                        if win_tov_s
-                        else "🔵 Perdut",
+                        "Atac Argentona": f"{tov_team:.1f}%",
+                        "Defensa (Rivals)": f"{tov_opp:.1f}%",
+                        "Diferencial Net": f"{tov_opp - tov_team:+.1f}%",
                     },
                     {
                         "Factor": "3. Rebot Ofensiu (OREB%)",
-                        "🔴 Atac Argentona": f"{oreb_team:.1f}%",
-                        "🛡️ Defensa (Rivals)": f"{oreb_opp:.1f}%",
+                        "Atac Argentona": f"{oreb_team:.1f}%",
+                        "Defensa (Rivals)": f"{oreb_opp:.1f}%",
                         "Diferencial Net": f"{oreb_team - oreb_opp:+.1f}%",
-                        "Impacte": "🔴 Guanyat (Més rebot ofensiu)"
-                        if win_oreb_s
-                        else "🔵 Perdut",
                     },
                     {
                         "Factor": "4. Freqüència TL (FT Rate)",
-                        "🔴 Atac Argentona": f"{ft_rate_team:.2f}",
-                        "🛡️ Defensa (Rivals)": f"{ft_rate_opp:.2f}",
+                        "Atac Argentona": f"{ft_rate_team:.2f}",
+                        "Defensa (Rivals)": f"{ft_rate_opp:.2f}",
                         "Diferencial Net": f"{ft_rate_team - ft_rate_opp:+.2f}",
-                        "Impacte": "🔴 Guanyat (Més producció TL)"
-                        if win_ft_s
-                        else "🔵 Perdut",
                     },
                 ]
             )
 
-            st.dataframe(
-                df_ff_unified_season, use_container_width=True, hide_index=True
+            render_four_factors_table(
+                df_ff_unified_season, [win_efg_s, win_tov_s, win_oreb_s, win_ft_s]
             )
 
             st.markdown("---")
@@ -3862,20 +3935,20 @@ else:
             ppg_team = team_pts / num_partits if num_partits > 0 else 0.0
             ppg_opp = opp_pts / num_partits if num_partits > 0 else 0.0
 
-            st.subheader("⚡ Eficiència Global de la Temporada")
+            st.subheader("Eficiència Global de la Temporada")
             c_pace_s, c_oer_s, c_der_s = st.columns(3)
             c_pace_s.metric(
-                "⏱️ Ritme de Joc (Pace a 40 min)",
+                "Ritme de Joc (Pace a 40 min)",
                 f"{pace_season:.1f} poss",
                 delta=f"{norm_poss_game:.1f} poss/partit",
             )
             c_oer_s.metric(
-                "🎯 OER (Eficiència Ofensiva)",
+                "OER (Eficiència Ofensiva)",
                 f"{season_oer:.1f} pts/100",
                 delta=f"{season_net:+.1f} Net Rating",
             )
             c_der_s.metric(
-                "🛡️ DER (Eficiència Defensiva)",
+                "DER (Eficiència Defensiva)",
                 f"{season_der:.1f} pts/100",
                 delta=f"{season_oer - season_der:+.1f} marge",
             )
@@ -3883,7 +3956,7 @@ else:
             st.markdown("---")
 
             # 8. TAULA DE DESGLOSSAMENT D'EFICIÈNCIA ACUMULADA (14 FILES FIXES)
-            st.subheader("📊 Desglossament d'Eficiència de Tir i Joc")
+            st.subheader("Desglossament d'Eficiència de Tir i Joc")
             col_table, _ = st.columns([3, 1])
 
             with col_table:
@@ -4180,7 +4253,7 @@ else:
     # -------------------------------------------------------------
     # 2. SECCIÓ BOX SCORE (TOTALS ACUMULATS)
     # -------------------------------------------------------------
-    elif active_tab_season == "📋 Box Score":
+    elif active_tab_season == "Box Score":
         comp_box = box_df[box_df["game_id"].astype(str).isin(valid_ids)].copy()
         comp_lineups = lineups_df[lineups_df["game_id"].astype(str).isin(valid_ids)].copy()
 
@@ -4211,7 +4284,7 @@ else:
 
             with col_b_filt:
                 min_m_filt = st.slider(
-                    f"⏱️ Minuts totals mínims a la temporada (0 a {max_m})",
+                    f"Minuts totals mínims a la temporada (0 a {max_m})",
                     min_value=0,
                     max_value=max(max_m, 10),
                     value=0,
@@ -4250,7 +4323,7 @@ else:
                     RIM_A=safe_agg("RIM(A)"),
                     PAINT_M=safe_agg("PAINT(M)"),
                     PAINT_A=safe_agg("PAINT(A)"),
-                    MR_M=safe_agg("MR(M)"),       # 👈 Aquí hi havia l'error amb "MR(MR)"
+                    MR_M=safe_agg("MR(M)"),       # Aquí hi havia l'error amb "MR(MR)"
                     MR_A=safe_agg("MR(A)"),
                     C3_M=safe_agg("C3(M)"),
                     C3_A=safe_agg("C3(A)"),
@@ -4493,12 +4566,12 @@ else:
 
                 if not df_rank_s.empty:
                     st.markdown("---")
-                    st.markdown("##### 👑 Punts Totals Generats per Creador (Temporada)")
+                    st.markdown("##### Punts Totals Generats per Creador (Temporada)")
                     df_c_disp_s = df_creadors_s.rename(columns={"Assistències_Totals": "AST", "Punts_Generats_Totals": "PTS Generats", "T2_Generats": "T2 Assistits", "T3_Generats": "T3 Assistits"})
                     render_boxscore(df_c_disp_s, "Assistències", is_totals_view=True)
 
                     st.markdown("<br>", unsafe_allow_html=True)
-                    st.markdown("##### 🤝 Connexions i Duos (Passador ➔ Anotador - Temporada)")
+                    st.markdown("##### Connexions i Duos (Passador ➔ Anotador - Temporada)")
                     df_r_disp_s = df_rank_s.rename(columns={"Assistències": "AST", "Punts_Generats": "PTS Generats", "T2": "T2 Assistits", "T3": "T3 Assistits"})
                     render_boxscore(df_r_disp_s, "Assistències", is_totals_view=True)
                 else:
@@ -4556,5 +4629,5 @@ else:
     # -------------------------------------------------------------
     # 3. SECCIÓ QUINTETS I ON/OFF (TOTALS ACUMULATS)
     # -------------------------------------------------------------
-    elif active_tab_season == "👥 Quintets i On/Off":
+    elif active_tab_season == "Quintets i On/Off":
         render_on_off_dashboard(comp_lineups, comp_box, key_prefix="season")
